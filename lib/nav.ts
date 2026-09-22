@@ -3,11 +3,8 @@ import {
   LayoutDashboard,
   Users,
   Building2,
-  Megaphone,
   Wallet,
-  Truck,
   UserCog,
-  LifeBuoy,
   BarChart3,
   Settings,
   IndianRupee,
@@ -49,9 +46,7 @@ export const navGroups: NavGroup[] = [
   {
     label: "Operations",
     items: [
-      { title: "Campaigns", url: "/campaigns", icon: Megaphone, roles: ["Owner", "Sales", "Campaign Manager"] },
       { title: "Client Finance", url: "/finance", icon: Wallet, roles: ["Owner", "HR"] },
-      { title: "Vendors", url: "/vendors", icon: Truck, roles: ["Owner", "Campaign Manager"] },
     ],
   },
   {
@@ -61,7 +56,6 @@ export const navGroups: NavGroup[] = [
       { title: "Attendance", url: "/hr/attendance", icon: UserCog, roles: "all" },
       { title: "Salary", url: "/hr/attendance?tab=salary", icon: IndianRupee, roles: ["Owner", "HR"] },
       { title: "Password Manager", url: "/hr/passwords", icon: KeyRound, roles: ["Owner", "HR"] },
-      { title: "Support Tickets", url: "/support", icon: LifeBuoy, roles: "all" },
     ],
   },
   {
