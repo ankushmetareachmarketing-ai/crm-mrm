@@ -12,10 +12,13 @@ declare global {
  * instance now, not through Supabase's Auth/PostgREST layer). Reused across
  * hot reloads in dev so we don't leak connections on every file edit.
  */
+const isRemoteDb = /supabase\.com/.test(process.env.DATABASE_URL ?? "")
+
 export const pool =
   globalThis._pgPool ??
   new Pool({
     connectionString: process.env.DATABASE_URL,
+    ssl: isRemoteDb ? { rejectUnauthorized: false } : undefined,
   })
 
 if (process.env.NODE_ENV !== "production") {
