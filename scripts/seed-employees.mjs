@@ -1,11 +1,3 @@
-// One-off seeding script: creates the illustrative preview employees with
-// real bcrypt-hashed passwords in public.employees. Run after
-// `supabase db reset` (or `supabase start` on a fresh DB) has applied the
-// access_profiles seed:
-//
-//   DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres node scripts/seed-employees.mjs
-//
-// Safe to re-run: employees already present (by login_id) are skipped. 
 
 import { Client } from "pg"
 import bcrypt from "bcryptjs"
