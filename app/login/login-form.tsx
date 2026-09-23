@@ -18,8 +18,8 @@ export function LoginForm() {
   const [state, formAction, pending] = useActionState(login, undefined)
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
-      <Card className="w-full max-w-sm">
+    <div className="flex min-h-screen items-center justify-center bg-muted/30 bg-[url('/images/user-bg.png')] bg-cover bg-center bg-no-repeat p-4 md:justify-end md:pr-16 lg:pr-32">
+      <Card className="w-full max-w-sm shadow-xl">
         <CardHeader>
           <CardTitle>MetaReach Office</CardTitle>
           <CardDescription>
