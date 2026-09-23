@@ -4,7 +4,6 @@ import { PageHeader } from "@/components/page-header"
 import { StatCard } from "@/components/stat-card"
 import { StatusBadge } from "@/components/status-badge"
 import { formatCurrency, formatDate } from "@/lib/format"
-import { ledgerEntries } from "@/lib/mock-data"
 import { pool } from "@/lib/db"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import {
@@ -17,10 +16,25 @@ import {
 } from "@/components/ui/table"
 
 export default async function FinancePage() {
-  const { rows } = await pool.query<{ id: string; company: string; balance: string; last_receipt_date: string | null }>(
-    `select id, company, balance::text, last_receipt_date::text from public.clients order by company`
-  )
-  const clients = rows.map((c) => ({
+  const [clientsResult, pendingResult, verifiedResult] = await Promise.all([
+    pool.query<{ id: string; company: string; balance: string; last_receipt_date: string | null }>(
+      `select id, company, balance::text, last_receipt_date::text from public.clients order by company`
+    ),
+    pool.query<{ id: string; client_id: string; company: string; amount: string; payment_date: string }>(
+      `select p.id, p.client_id, c.company, p.amount::text, p.payment_date::text
+       from public.payments p
+       join public.clients c on c.id = p.client_id
+       where p.approval_status = 'Pending'
+       order by p.payment_date desc`
+    ),
+    pool.query<{ total: string }>(
+      `select coalesce(sum(amount), 0)::text as total
+       from public.payments
+       where approval_status = 'Approved' and date_trunc('month', payment_date) = date_trunc('month', current_date)`
+    ),
+  ])
+
+  const clients = clientsResult.rows.map((c) => ({
     id: c.id,
     company: c.company,
     balance: Number(c.balance),
@@ -29,10 +43,13 @@ export default async function FinancePage() {
 
   const totalDue = clients.reduce((sum, c) => sum + Math.max(c.balance, 0), 0)
   const totalAdvance = clients.reduce((sum, c) => sum + Math.max(-c.balance, 0), 0)
-  const pendingReceipts = ledgerEntries.filter((e) => e.status === "Pending")
-  const verifiedThisMonth = ledgerEntries
-    .filter((e) => e.type === "Receipt" && e.status === "Posted")
-    .reduce((sum, e) => sum + (e.credit ?? 0), 0)
+  const pendingReceipts = pendingResult.rows.map((p) => ({
+    id: p.id,
+    clientId: p.client_id,
+    company: p.company,
+    amount: Number(p.amount),
+  }))
+  const verifiedThisMonth = Number(verifiedResult.rows[0].total)
 
   return (
     <div className="flex flex-col gap-6">
@@ -99,19 +116,15 @@ export default async function FinancePage() {
             <CardDescription>Does not change confirmed due until accepted.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-            {pendingReceipts.map((e) => {
-              const client = clients.find((c) => c.id === e.clientId)
-              return (
-                <div key={e.id} className="rounded-lg border p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{client?.company}</span>
-                    <StatusBadge status={e.status} />
-                  </div>
-                  <p className="text-xs text-muted-foreground">{e.description}</p>
-                  <p className="mt-1 text-sm font-medium">{formatCurrency(e.credit)}</p>
+            {pendingReceipts.map((p) => (
+              <Link key={p.id} href={`/crm/clients/${p.clientId}`} className="block rounded-lg border p-3 hover:border-primary">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">{p.company}</span>
+                  <StatusBadge status="Pending" />
                 </div>
-              )
-            })}
+                <p className="mt-1 text-sm font-medium">{formatCurrency(p.amount)}</p>
+              </Link>
+            ))}
             {pendingReceipts.length === 0 ? (
               <p className="text-sm text-muted-foreground">No submissions awaiting acceptance.</p>
             ) : null}

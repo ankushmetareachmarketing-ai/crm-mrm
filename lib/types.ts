@@ -32,6 +32,7 @@ export interface Lead {
   budget: number | null
   priority: LeadPriority
   expectedCloseDate: string | null
+  convertedClientId: string | null
 }
 
 export type ClientStatus = "Active" | "On Hold" | "Inactive"
@@ -47,6 +48,7 @@ export interface Client {
   balance: number
   lastReceiptDate: string | null
   since: string
+  renewalDate: string | null
   website: string | null
   logoUrl: string | null
   gstin: string | null

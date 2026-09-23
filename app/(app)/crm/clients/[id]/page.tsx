@@ -4,11 +4,11 @@ import { ArrowLeft } from "lucide-react"
 import { StatusBadge } from "@/components/status-badge"
 import { StatCard } from "@/components/stat-card"
 import { formatCurrency, formatDate, formatRelativeTime } from "@/lib/format"
-import { ledgerEntries, campaigns, meetings } from "@/lib/mock-data"
+import { campaigns, meetings } from "@/lib/mock-data"
 import { pool } from "@/lib/db"
 import { getCurrentEmployee } from "@/lib/auth/current-user"
-import type { Client, ClientContact, ClientNote, ActivityEntry } from "@/lib/types"
-import { Wallet, ReceiptText, Building2, CalendarClock } from "lucide-react"
+import type { Client, ClientContact, ClientNote, ActivityEntry, Payment } from "@/lib/types"
+import { Wallet, ReceiptText, Building2, CalendarClock, CalendarCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -46,6 +46,7 @@ export default async function ClientDetailPage({
     balance: string
     last_receipt_date: string | null
     since: string
+    renewal_date: string | null
     website: string | null
     logo_url: string | null
     gstin: string | null
@@ -59,7 +60,7 @@ export default async function ClientDetailPage({
     description: string | null
   }>(
     `select c.id, c.company, c.industry, c.owner_employee_id, e.name as owner_name, c.status,
-            c.balance::text, c.last_receipt_date::text, c.since::text,
+            c.balance::text, c.last_receipt_date::text, c.since::text, c.renewal_date::text,
             c.website, c.logo_url, c.gstin, c.company_size, c.address_line1, c.address_line2,
             c.city, c.state, c.pincode, c.country, c.description
      from public.clients c
@@ -87,6 +88,7 @@ export default async function ClientDetailPage({
     balance: Number(clientRow.balance),
     lastReceiptDate: clientRow.last_receipt_date,
     since: clientRow.since,
+    renewalDate: clientRow.renewal_date,
     website: clientRow.website,
     logoUrl: clientRow.logo_url,
     gstin: clientRow.gstin,
@@ -109,7 +111,7 @@ export default async function ClientDetailPage({
     client.country,
   ].filter(Boolean)
 
-  const [contactsResult, notesResult, activityResult] = await Promise.all([
+  const [contactsResult, notesResult, activityResult, paymentsResult] = await Promise.all([
     pool.query<{ id: string; name: string; designation: string | null; phone: string | null; email: string | null }>(
       `select id, name, designation, phone, email from public.client_contacts where client_id = $1 order by created_at`,
       [id]
@@ -130,6 +132,30 @@ export default async function ClientDetailPage({
        order by a.created_at desc`,
       [id]
     ),
+    pool.query<{
+      id: string
+      amount: string
+      payment_date: string
+      method: string | null
+      reference: string | null
+      status: Payment["status"]
+      notes: string | null
+      recorded_by_name: string | null
+      created_at: string
+      approval_status: Payment["approvalStatus"]
+      approved_by_name: string | null
+      approved_at: string | null
+    }>(
+      `select p.id, p.amount::text, p.payment_date::text, p.method, p.reference, p.status, p.notes,
+              e.name as recorded_by_name, p.created_at::text,
+              p.approval_status, a.name as approved_by_name, p.approved_at::text
+       from public.payments p
+       left join public.employees e on e.id = p.recorded_by_employee_id
+       left join public.employees a on a.id = p.approved_by_employee_id
+       where p.client_id = $1
+       order by p.payment_date desc, p.created_at desc`,
+      [id]
+    ),
   ])
 
   const contacts: ClientContact[] = contactsResult.rows
@@ -147,7 +173,25 @@ export default async function ClientDetailPage({
     createdAt: a.created_at,
   }))
 
-  const entries = ledgerEntries.filter((e) => e.clientId === client.id)
+  const payments: Payment[] = paymentsResult.rows.map((p) => ({
+    id: p.id,
+    clientId: client.id,
+    clientCompany: client.company,
+    amount: Number(p.amount),
+    paymentDate: p.payment_date,
+    method: p.method,
+    reference: p.reference,
+    status: p.status,
+    notes: p.notes,
+    recordedBy: p.recorded_by_name,
+    createdAt: p.created_at,
+    approvalStatus: p.approval_status,
+    approvedBy: p.approved_by_name,
+    approvedAt: p.approved_at,
+  }))
+  const totalReceived = payments
+    .filter((p) => p.approvalStatus === "Approved")
+    .reduce((sum, p) => sum + p.amount, 0)
   const clientCampaigns = campaigns.filter((c) => c.client === client.company)
   const clientMeetings = meetings.filter((m) => m.client === client.company)
   const due = Math.max(client.balance, 0)
@@ -197,16 +241,17 @@ export default async function ClientDetailPage({
         ) : null}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Amount due" value={formatCurrency(due)} icon={ReceiptText} hint="Positive balance" />
         <StatCard label="Advance held" value={formatCurrency(advance)} icon={Wallet} hint="Unallocated credit" />
+        <StatCard label="Total received" value={formatCurrency(totalReceived)} icon={CalendarCheck} hint="Approved payments" />
         <StatCard label="Client since" value={formatDate(client.since)} icon={Building2} />
-        <StatCard label="Last receipt" value={formatDate(client.lastReceiptDate)} icon={CalendarClock} />
+        <StatCard label="Renewal due" value={formatDate(client.renewalDate)} icon={CalendarClock} />
       </div>
 
-      <Tabs defaultValue="ledger">
+      <Tabs defaultValue="payments">
         <TabsList className="h-11 flex-wrap p-1">
-          <TabsTrigger value="ledger" className="px-3 py-1.5">Ledger</TabsTrigger>
+          <TabsTrigger value="payments" className="px-3 py-1.5">Payments</TabsTrigger>
           <TabsTrigger value="campaigns" className="px-3 py-1.5">Campaigns</TabsTrigger>
           <TabsTrigger value="meetings" className="px-3 py-1.5">Meetings</TabsTrigger>
           <TabsTrigger value="contacts" className="px-3 py-1.5">Contacts</TabsTrigger>
@@ -214,54 +259,50 @@ export default async function ClientDetailPage({
           <TabsTrigger value="activity" className="px-3 py-1.5">Activity</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="ledger">
+        <TabsContent value="payments">
           <Card>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>
-                    <TableHead>Type</TableHead>
                     <TableHead>Reference</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead className="text-right">Debit</TableHead>
-                    <TableHead className="text-right">Credit</TableHead>
-                    <TableHead className="text-right">Balance</TableHead>
+                    <TableHead>Method</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Recorded by</TableHead>
+                    <TableHead>Approval</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {entries.map((e) => (
-                    <TableRow key={e.id}>
-                      <TableCell className="text-sm">{formatDate(e.date)}</TableCell>
-                      <TableCell className="text-sm">{e.type}</TableCell>
-                      <TableCell className="font-mono text-xs">{e.reference}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{e.description}</TableCell>
-                      <TableCell className="text-right text-sm">
-                        {e.debit ? formatCurrency(e.debit) : "—"}
-                      </TableCell>
-                      <TableCell className="text-right text-sm">
-                        {e.credit ? formatCurrency(e.credit) : "—"}
-                      </TableCell>
+                  {payments.map((p) => (
+                    <TableRow key={p.id}>
+                      <TableCell className="text-sm">{formatDate(p.paymentDate)}</TableCell>
+                      <TableCell className="font-mono text-xs">{p.reference ?? "—"}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{p.method ?? "—"}</TableCell>
                       <TableCell className="text-right text-sm font-medium">
-                        {formatCurrency(e.runningBalance)}
+                        {formatCurrency(p.amount)}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{p.recordedBy ?? "—"}</TableCell>
+                      <TableCell>
+                        <StatusBadge status={p.approvalStatus} />
                       </TableCell>
                       <TableCell>
-                        <StatusBadge status={e.status} />
+                        <StatusBadge status={p.status} />
                       </TableCell>
                     </TableRow>
                   ))}
-                  {entries.length === 0 ? (
+                  {payments.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
-                        No ledger activity recorded for this client yet.
+                      <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
+                        No payments recorded for this client yet.
                       </TableCell>
                     </TableRow>
                   ) : null}
                 </TableBody>
               </Table>
               <p className="mt-3 text-xs text-muted-foreground">
-                A pending receipt does not change the confirmed due balance until Owner acceptance posts it.
+                A pending payment does not change the confirmed due balance until Owner or HR approval posts it.
               </p>
             </CardContent>
           </Card>

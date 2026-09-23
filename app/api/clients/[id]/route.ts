@@ -19,6 +19,7 @@ const EDITABLE_FIELDS: Record<string, string> = {
   pincode: "pincode",
   country: "country",
   description: "description",
+  renewalDate: "renewal_date",
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {

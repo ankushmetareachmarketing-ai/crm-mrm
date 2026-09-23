@@ -25,6 +25,7 @@ export async function POST(request: Request) {
     pincode,
     country,
     description,
+    renewalDate,
   } = body ?? {}
 
   if (!company) {
@@ -41,8 +42,8 @@ export async function POST(request: Request) {
   await pool.query(
     `insert into public.clients
        (id, company, industry, owner_employee_id, status, website, logo_url, gstin, company_size,
-        address_line1, address_line2, city, state, pincode, country, description)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+        address_line1, address_line2, city, state, pincode, country, description, renewal_date)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
     [
       id,
       company,
@@ -60,6 +61,7 @@ export async function POST(request: Request) {
       pincode || null,
       country || "India",
       description || null,
+      renewalDate || null,
     ]
   )
 

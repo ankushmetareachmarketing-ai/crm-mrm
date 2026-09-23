@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { CalendarClock, IndianRupee, Phone, Building2, PhoneCall, ThumbsDown, ThumbsUp } from "lucide-react"
+import { CalendarClock, IndianRupee, Phone, Building2, PhoneCall, ThumbsDown, ThumbsUp, TrendingUp, RefreshCw } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { StatCard } from "@/components/stat-card"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,6 +17,8 @@ export async function SalesDashboard({ employeeId }: { employeeId: string }) {
     activityResult,
     myLeadsResult,
     myClientsResult,
+    leadStatsResult,
+    renewalsResult,
   ] = await Promise.all([
     pool.query<{ id: string; company: string; balance: string; last_receipt_date: string | null }>(
       `select id, company, balance::text, last_receipt_date::text
@@ -65,6 +67,19 @@ export async function SalesDashboard({ employeeId }: { employeeId: string }) {
       `select id, company from public.clients where owner_employee_id = $1 order by created_at desc`,
       [employeeId]
     ),
+    pool.query<{ total: string; converted: string }>(
+      `select count(*)::text as total, count(*) filter (where converted_client_id is not null)::text as converted
+       from public.leads where owner_employee_id = $1`,
+      [employeeId]
+    ),
+    pool.query<{ id: string; company: string; renewal_date: string }>(
+      `select id, company, renewal_date::text
+       from public.clients
+       where owner_employee_id = $1 and renewal_date is not null and renewal_date <= current_date + interval '30 days'
+       order by renewal_date asc
+       limit 6`,
+      [employeeId]
+    ),
   ])
 
   const totalDue = dueClientsResult.rows.reduce((sum, c) => sum + Number(c.balance), 0)
@@ -72,6 +87,12 @@ export async function SalesDashboard({ employeeId }: { employeeId: string }) {
   const interestedToday = callsTodayResult.rows.find((r) => r.outcome === "Interested")?.count ?? "0"
   const notInterestedToday = callsTodayResult.rows.find((r) => r.outcome === "Not Interested")?.count ?? "0"
   const todayKey = new Date().toISOString().slice(0, 10)
+
+  const leadStats = leadStatsResult.rows[0]
+  const totalLeads = Number(leadStats.total)
+  const convertedLeads = Number(leadStats.converted)
+  const conversionRate = totalLeads > 0 ? Math.round((convertedLeads / totalLeads) * 100) : 0
+  const renewals = renewalsResult.rows
 
   const records = [
     ...myLeadsResult.rows.map((l) => ({ entityType: "lead" as const, entityId: l.id, label: `${l.company} (Lead)` })),
@@ -85,7 +106,7 @@ export async function SalesDashboard({ employeeId }: { employeeId: string }) {
         description="Your leads, clients, dues and calls — nobody else's data shows up here."
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <StatCard label="My clients" value={String(myClientsResult.rows.length)} icon={Building2} href="/crm/clients" />
         <StatCard
           label="Payments due"
@@ -107,6 +128,20 @@ export async function SalesDashboard({ employeeId }: { employeeId: string }) {
           icon={CalendarClock}
           hint={followUpsResult.rows.filter((f) => f.next_follow_up_date < todayKey).length > 0 ? "some overdue" : undefined}
           href="/calls"
+        />
+        <StatCard
+          label="Lead conversion"
+          value={`${conversionRate}%`}
+          icon={TrendingUp}
+          hint={`${convertedLeads} of ${totalLeads} leads won`}
+          href="/crm/leads"
+        />
+        <StatCard
+          label="Renewals due"
+          value={String(renewals.length)}
+          icon={RefreshCw}
+          hint={renewals.length > 0 ? "next 30 days" : undefined}
+          href="/crm/clients"
         />
       </div>
 
@@ -145,6 +180,25 @@ export async function SalesDashboard({ employeeId }: { employeeId: string }) {
                     <span className="text-muted-foreground">
                       {formatDate(r.due_date)}
                       {r.expected_amount ? ` · ${formatCurrency(Number(r.expected_amount))}` : ""}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            {renewals.length > 0 ? (
+              <div className="mt-2 flex flex-col gap-2 border-t pt-3">
+                <p className="text-xs font-medium text-muted-foreground">Renewals due (next 30 days)</p>
+                {renewals.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between text-sm">
+                    <Link href={`/crm/clients/${r.id}`} className="hover:underline">
+                      {r.company}
+                    </Link>
+                    <span
+                      className={
+                        r.renewal_date < todayKey ? "font-medium text-destructive" : "text-muted-foreground"
+                      }
+                    >
+                      {r.renewal_date < todayKey ? "Overdue" : formatDate(r.renewal_date)}
                     </span>
                   </div>
                 ))}

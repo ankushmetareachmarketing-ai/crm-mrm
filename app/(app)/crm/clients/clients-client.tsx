@@ -58,6 +58,17 @@ const emptyForm = {
   pincode: "",
   country: "India",
   description: "",
+  renewalDate: "",
+}
+
+type ClientWithFinance = Client & { totalReceived: number }
+
+function renewalTone(renewalDate: string | null): "overdue" | "soon" | null {
+  if (!renewalDate) return null
+  const daysLeft = Math.ceil((new Date(renewalDate).getTime() - Date.now()) / 86_400_000)
+  if (daysLeft < 0) return "overdue"
+  if (daysLeft <= 30) return "soon"
+  return null
 }
 
 export function ClientsClient({
@@ -66,12 +77,12 @@ export function ClientsClient({
   currentEmployeeId,
   isOwner,
 }: {
-  initialClients: Client[]
+  initialClients: ClientWithFinance[]
   employees: { id: string; name: string }[]
   currentEmployeeId: string
   isOwner: boolean
 }) {
-  const [clients, setClients] = useState<Client[]>(initialClients)
+  const [clients, setClients] = useState<ClientWithFinance[]>(initialClients)
   const [open, setOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
@@ -103,6 +114,7 @@ export function ClientsClient({
       pincode: client.pincode ?? "",
       country: client.country || "India",
       description: client.description ?? "",
+      renewalDate: client.renewalDate ?? "",
     })
     setError(null)
     setOpen(true)
@@ -146,6 +158,7 @@ export function ClientsClient({
                   pincode: form.pincode || null,
                   country: form.country || "India",
                   description: form.description || null,
+                  renewalDate: form.renewalDate || null,
                 }
               : c
           )
@@ -161,7 +174,7 @@ export function ClientsClient({
           setError(body.error ?? "Could not create the client.")
           return
         }
-        const newClient: Client = {
+        const newClient: ClientWithFinance = {
           id: body.id,
           company: form.company,
           industry: form.industry || "Unclassified",
@@ -172,6 +185,8 @@ export function ClientsClient({
           balance: 0,
           lastReceiptDate: null,
           since: new Date().toISOString().slice(0, 10),
+          renewalDate: form.renewalDate || null,
+          totalReceived: 0,
           website: form.website || null,
           logoUrl: form.logoUrl,
           gstin: form.gstin || null,
@@ -374,6 +389,16 @@ export function ClientsClient({
                   </div>
                 </div>
                 <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="client-renewal">Renewal / expiry date</Label>
+                  <Input
+                    id="client-renewal"
+                    type="date"
+                    className="h-10 text-base"
+                    value={form.renewalDate}
+                    onChange={(e) => setForm((f) => ({ ...f, renewalDate: e.target.value }))}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
                   <Label htmlFor="client-description">Description / notes</Label>
                   <Textarea
                     id="client-description"
@@ -409,7 +434,9 @@ export function ClientsClient({
                 <TableHead>Status</TableHead>
                 <TableHead>Contacts</TableHead>
                 <TableHead className="text-right">Balance</TableHead>
+                <TableHead className="text-right">Total received</TableHead>
                 <TableHead>Last receipt</TableHead>
+                <TableHead>Renewal</TableHead>
                 <TableHead className="w-16" />
               </TableRow>
             </TableHeader>
@@ -446,8 +473,25 @@ export function ClientsClient({
                       {client.balance > 0 ? "due" : client.balance < 0 ? "advance" : ""}
                     </span>
                   </TableCell>
+                  <TableCell className="text-right text-sm">
+                    {formatCurrency(client.totalReceived)}
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {formatDate(client.lastReceiptDate)}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {client.renewalDate ? (
+                      <span
+                        className={cn(
+                          renewalTone(client.renewalDate) === "overdue" && "font-medium text-destructive",
+                          renewalTone(client.renewalDate) === "soon" && "font-medium text-amber-600"
+                        )}
+                      >
+                        {formatDate(client.renewalDate)}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
@@ -465,7 +509,7 @@ export function ClientsClient({
               ))}
               {clients.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={10} className="py-8 text-center text-sm text-muted-foreground">
                     No clients yet.
                   </TableCell>
                 </TableRow>

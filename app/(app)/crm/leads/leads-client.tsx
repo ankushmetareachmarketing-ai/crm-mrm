@@ -1,8 +1,9 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import Link from "next/link"
 import { cn } from "@/lib/utils"
-import { Pencil, Plus, Search } from "lucide-react"
+import { ArrowRightCircle, Pencil, Plus, Search } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { StatusBadge } from "@/components/status-badge"
 import { formatDate, getInitials } from "@/lib/format"
@@ -78,6 +79,26 @@ export function LeadsClient({
   const [form, setForm] = useState(emptyForm)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [convertingId, setConvertingId] = useState<string | null>(null)
+  const [convertError, setConvertError] = useState<string | null>(null)
+
+  async function handleConvert(lead: Lead) {
+    setConvertingId(lead.id)
+    setConvertError(null)
+    try {
+      const res = await fetch(`/api/leads/${lead.id}/convert`, { method: "POST" })
+      const body = await res.json()
+      if (!res.ok) {
+        setConvertError(body.error ?? "Could not convert this lead.")
+        return
+      }
+      setLeads((prev) =>
+        prev.map((l) => (l.id === lead.id ? { ...l, stage: "Won", convertedClientId: body.clientId } : l))
+      )
+    } finally {
+      setConvertingId(null)
+    }
+  }
 
   const filtered = useMemo(() => {
     return leads.filter((l) => {
@@ -190,6 +211,7 @@ export function LeadsClient({
           budget: form.budget ? Number(form.budget) : null,
           priority: form.priority,
           expectedCloseDate: form.expectedCloseDate || null,
+          convertedClientId: null,
         }
         setLeads((prev) => [newLead, ...prev])
       }
@@ -411,6 +433,7 @@ export function LeadsClient({
 
       <Card>
         <CardContent className="flex flex-col gap-4">
+          {convertError ? <p className="text-sm text-destructive">{convertError}</p> : null}
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -448,7 +471,8 @@ export function LeadsClient({
                 <TableHead>Owner</TableHead>
                 <TableHead>Next action</TableHead>
                 <TableHead className="text-right">Due</TableHead>
-                <TableHead className="w-8" />
+                <TableHead>Client</TableHead>
+                <TableHead className="w-16" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -482,6 +506,27 @@ export function LeadsClient({
                     {formatDate(lead.nextActionDue)}
                   </TableCell>
                   <TableCell>
+                    {lead.convertedClientId ? (
+                      <Link
+                        href={`/crm/clients/${lead.convertedClientId}`}
+                        className="text-sm font-medium text-emerald-700 hover:underline"
+                      >
+                        {lead.convertedClientId}
+                      </Link>
+                    ) : (isOwner || lead.ownerEmployeeId === currentEmployeeId) && lead.stage !== "Lost" ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={convertingId === lead.id}
+                        onClick={() => handleConvert(lead)}
+                      >
+                        <ArrowRightCircle /> {convertingId === lead.id ? "Converting…" : "Convert"}
+                      </Button>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     {isOwner || lead.ownerEmployeeId === currentEmployeeId ? (
                       <Button variant="ghost" size="icon-sm" onClick={() => openEdit(lead)}>
                         <Pencil />
@@ -492,7 +537,7 @@ export function LeadsClient({
               ))}
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="py-8 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={10} className="py-8 text-center text-sm text-muted-foreground">
                     No leads match your filters.
                   </TableCell>
                 </TableRow>

@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { AlarmClock, CalendarCheck, Download, IndianRupee, LogIn, LogOut, Users2 } from "lucide-react"
+import { AlarmClock, CalendarCheck, Download, IndianRupee, Users2 } from "lucide-react"
 import { PageHeader } from "@/components/page-header"
 import { StatCard } from "@/components/stat-card"
 import { StatusBadge } from "@/components/status-badge"
@@ -120,73 +120,11 @@ export function AttendanceClient({
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(currentEmployeeId)
   const [selectedMonth, setSelectedMonth] = useState(currentMonthKey())
   const [salaryMonth, setSalaryMonth] = useState(currentMonthKey())
-  const [punching, setPunching] = useState(false)
-  const [punchError, setPunchError] = useState<string | null>(null)
 
   const [dayDialogDate, setDayDialogDate] = useState<string | null>(null)
   const [dayForm, setDayForm] = useState(emptyDayForm)
   const [daySubmitting, setDaySubmitting] = useState(false)
   const [dayError, setDayError] = useState<string | null>(null)
-
-  const myToday = entries.find((e) => e.employeeId === currentEmployeeId && e.workDate === todayKey())
-
-  async function handleCheckIn() {
-    setPunching(true)
-    setPunchError(null)
-    try {
-      const res = await fetch("/api/attendance/check-in", { method: "POST" })
-      const body = await res.json()
-      if (!res.ok) {
-        setPunchError(body.error ?? "Could not check in.")
-        return
-      }
-      setEntries((prev) => {
-        const existing = prev.find((e) => e.employeeId === currentEmployeeId && e.workDate === todayKey())
-        if (existing) {
-          return prev.map((e) => (e === existing ? { ...e, checkInAt: body.checkInAt } : e))
-        }
-        return [
-          {
-            id: `local-${Date.now()}`,
-            employeeId: currentEmployeeId,
-            employeeName: employees.find((e) => e.id === currentEmployeeId)?.name ?? "",
-            workDate: todayKey(),
-            checkInAt: body.checkInAt,
-            checkOutAt: null,
-            status: "Present",
-            penaltyAmount: 0,
-            penaltyReason: null,
-            notes: null,
-          },
-          ...prev,
-        ]
-      })
-    } finally {
-      setPunching(false)
-    }
-  }
-
-  async function handleCheckOut() {
-    setPunching(true)
-    setPunchError(null)
-    try {
-      const res = await fetch("/api/attendance/check-out", { method: "POST" })
-      const body = await res.json()
-      if (!res.ok) {
-        setPunchError(body.error ?? "Could not check out.")
-        return
-      }
-      setEntries((prev) =>
-        prev.map((e) =>
-          e.employeeId === currentEmployeeId && e.workDate === todayKey()
-            ? { ...e, checkOutAt: body.checkOutAt, status: body.status }
-            : e
-        )
-      )
-    } finally {
-      setPunching(false)
-    }
-  }
 
   function openDay(dateStr: string) {
     if (!canManage) return
@@ -305,33 +243,12 @@ export function AttendanceClient({
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Attendance"
-        description="Check in and out daily. Checking out before 2:00 PM marks the day as a half day."
+        description={
+          canManage
+            ? "Mark each employee's daily status, check-in/out time, or penalty. Click a day on the calendar to edit it."
+            : "Your attendance is marked by HR — click a day for details."
+        }
       />
-
-      <Card>
-        <CardContent className="flex flex-wrap items-center justify-between gap-4 py-4">
-          <div>
-            <p className="text-sm font-medium">Today — {formatDate(todayKey())}</p>
-            <p className="text-sm text-muted-foreground">
-              {myToday?.checkInAt ? `Checked in ${formatTime(myToday.checkInAt)}` : "Not checked in yet"}
-              {myToday?.checkOutAt ? ` · Checked out ${formatTime(myToday.checkOutAt)}` : ""}
-            </p>
-            {punchError ? <p className="text-sm text-destructive">{punchError}</p> : null}
-          </div>
-          <div className="flex gap-2">
-            <Button onClick={handleCheckIn} disabled={punching || !!myToday?.checkInAt}>
-              <LogIn /> Check in
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleCheckOut}
-              disabled={punching || !myToday?.checkInAt || !!myToday?.checkOutAt}
-            >
-              <LogOut /> Check out
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
       <Tabs defaultValue={initialTab}>
         <TabsList>
