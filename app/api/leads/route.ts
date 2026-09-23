@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getCurrentEmployeeOrNull } from "@/lib/auth/current-user"
 import { pool } from "@/lib/db"
+import { isNonNegativeNumber, isValidDateString } from "@/lib/validate"
 
 export async function POST(request: Request) {
   const caller = await getCurrentEmployeeOrNull()
@@ -23,6 +24,12 @@ export async function POST(request: Request) {
 
   if (!company || !contact) {
     return NextResponse.json({ error: "Company and contact are required." }, { status: 400 })
+  }
+  if (budget && !isNonNegativeNumber(budget)) {
+    return NextResponse.json({ error: "Budget must be a non-negative number." }, { status: 400 })
+  }
+  if (expectedCloseDate && !isValidDateString(expectedCloseDate)) {
+    return NextResponse.json({ error: "Expected close date is invalid." }, { status: 400 })
   }
 
   // Never trust an owner id sent from the browser: non-Owners can only ever

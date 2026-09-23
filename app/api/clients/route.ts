@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getCurrentEmployeeOrNull } from "@/lib/auth/current-user"
 import { pool } from "@/lib/db"
+import { isValidDateString } from "@/lib/validate"
 
 export async function POST(request: Request) {
   const caller = await getCurrentEmployeeOrNull()
@@ -30,6 +31,9 @@ export async function POST(request: Request) {
 
   if (!company) {
     return NextResponse.json({ error: "Company is required." }, { status: 400 })
+  }
+  if (renewalDate && !isValidDateString(renewalDate)) {
+    return NextResponse.json({ error: "Renewal date is invalid." }, { status: 400 })
   }
 
   // Never trust an owner id sent from the browser: non-Owners can only ever

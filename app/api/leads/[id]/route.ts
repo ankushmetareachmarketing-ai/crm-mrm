@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getCurrentEmployeeOrNull } from "@/lib/auth/current-user"
 import { assertOwnsOrIsOwner, ForbiddenError } from "@/lib/auth/ownership"
 import { pool } from "@/lib/db"
+import { isNonNegativeNumber, isValidDateString } from "@/lib/validate"
 
 const EDITABLE_FIELDS: Record<string, string> = {
   company: "company",
@@ -50,6 +51,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // Only the Owner may reassign a lead to a different employee.
   if (caller.role !== "Owner") {
     delete body.ownerEmployeeId
+  }
+
+  if (body.budget && !isNonNegativeNumber(body.budget)) {
+    return NextResponse.json({ error: "Budget must be a non-negative number." }, { status: 400 })
+  }
+  if (body.expectedCloseDate && !isValidDateString(body.expectedCloseDate)) {
+    return NextResponse.json({ error: "Expected close date is invalid." }, { status: 400 })
+  }
+  if (body.nextActionDue && !isValidDateString(body.nextActionDue)) {
+    return NextResponse.json({ error: "Next action due date is invalid." }, { status: 400 })
   }
 
   const setClauses: string[] = []

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getCurrentEmployeeOrNull } from "@/lib/auth/current-user"
 import { pool } from "@/lib/db"
+import { isNonNegativeNumber, isValidDateString, isValidTimeString } from "@/lib/validate"
 import type { AttendanceStatus } from "@/lib/types"
 
 const VALID_STATUSES: AttendanceStatus[] = ["Present", "Half Day", "Absent", "On Leave"]
@@ -17,8 +18,17 @@ export async function POST(request: Request) {
   const body = await request.json()
   const { employeeId, workDate, status, checkInTime, checkOutTime, penaltyAmount, penaltyReason, notes } = body ?? {}
 
-  if (!employeeId || !workDate || !VALID_STATUSES.includes(status)) {
+  if (!employeeId || !isValidDateString(workDate) || !VALID_STATUSES.includes(status)) {
     return NextResponse.json({ error: "employeeId, workDate and a valid status are required." }, { status: 400 })
+  }
+  if (checkInTime && !isValidTimeString(checkInTime)) {
+    return NextResponse.json({ error: "Check-in time is invalid." }, { status: 400 })
+  }
+  if (checkOutTime && !isValidTimeString(checkOutTime)) {
+    return NextResponse.json({ error: "Check-out time is invalid." }, { status: 400 })
+  }
+  if (penaltyAmount && !isNonNegativeNumber(penaltyAmount)) {
+    return NextResponse.json({ error: "Penalty amount must be a non-negative number." }, { status: 400 })
   }
 
   const checkInAt = checkInTime ? `${workDate} ${checkInTime}:00` : null

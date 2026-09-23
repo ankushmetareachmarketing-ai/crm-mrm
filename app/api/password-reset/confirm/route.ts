@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { pool } from "@/lib/db"
 import { hashResetToken } from "@/lib/auth/reset-token"
 import { hashPassword } from "@/lib/auth/password"
+import { logError } from "@/lib/logger"
 
 export async function POST(request: Request) {
   const body = await request.json()
@@ -42,7 +43,8 @@ export async function POST(request: Request) {
     await client.query("commit")
   } catch (error) {
     await client.query("rollback")
-    throw error
+    logError("password-reset.confirm", error, { employeeId: resetRequest.employee_id })
+    return NextResponse.json({ error: "Could not reset your password. Please try again." }, { status: 500 })
   } finally {
     client.release()
   }

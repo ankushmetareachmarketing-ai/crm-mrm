@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getCurrentEmployeeOrNull } from "@/lib/auth/current-user"
 import { pool } from "@/lib/db"
 import { encryptSecret } from "@/lib/crypto"
+import { logError } from "@/lib/logger"
 
 function canManage(role: string) {
   return role === "Owner" || role === "HR"
@@ -52,7 +53,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     )
   } catch (error) {
     await client.query("rollback")
-    throw error
+    logError("employees.credentials.create", error, { employeeId: id, callerId: caller.id })
+    return NextResponse.json({ error: "Could not save this credential. Please try again." }, { status: 500 })
   } finally {
     client.release()
   }

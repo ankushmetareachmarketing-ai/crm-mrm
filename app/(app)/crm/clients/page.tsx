@@ -1,6 +1,7 @@
 import { pool } from "@/lib/db"
 import type { Client } from "@/lib/types"
 import { getCurrentEmployee } from "@/lib/auth/current-user"
+import { getActiveEmployeeOptions } from "@/lib/data/employees"
 import { ClientsClient } from "./clients-client"
 
 interface ClientRow {
@@ -33,7 +34,7 @@ export default async function ClientsPage() {
   const currentEmployee = await getCurrentEmployee()
   const isOwner = currentEmployee.role === "Owner"
 
-  const [clientsResult, employeesResult] = await Promise.all([
+  const [clientsResult, employees] = await Promise.all([
     pool.query<ClientRow>(
       `select c.id, c.company, c.industry, c.owner_employee_id, e.name as owner_name,
               c.status, c.balance::text, c.last_receipt_date::text, c.since::text, c.renewal_date::text,
@@ -48,9 +49,7 @@ export default async function ClientsPage() {
        order by c.created_at desc`,
       isOwner ? [] : [currentEmployee.id]
     ),
-    pool.query<{ id: string; name: string }>(
-      `select id, name from public.employees where active order by name`
-    ),
+    getActiveEmployeeOptions(),
   ])
 
   const clients: (Client & { totalReceived: number })[] = clientsResult.rows.map((c) => ({
@@ -82,7 +81,7 @@ export default async function ClientsPage() {
   return (
     <ClientsClient
       initialClients={clients}
-      employees={employeesResult.rows}
+      employees={employees}
       currentEmployeeId={currentEmployee.id}
       isOwner={isOwner}
     />

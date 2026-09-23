@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { getCurrentEmployeeOrNull } from "@/lib/auth/current-user"
 import { assertOwnsOrIsOwner, ForbiddenError } from "@/lib/auth/ownership"
 import { pool } from "@/lib/db"
+import { logError } from "@/lib/logger"
+import { isPositiveNumber, isValidDateString } from "@/lib/validate"
 
 export async function POST(request: Request) {
   const caller = await getCurrentEmployeeOrNull()
@@ -12,8 +14,11 @@ export async function POST(request: Request) {
   const body = await request.json()
   const { clientId, amount, paymentDate, method, reference, status, notes } = body ?? {}
 
-  if (!clientId || !amount || Number(amount) <= 0) {
+  if (!clientId || !isPositiveNumber(amount)) {
     return NextResponse.json({ error: "Client and a positive amount are required." }, { status: 400 })
+  }
+  if (paymentDate && !isValidDateString(paymentDate)) {
+    return NextResponse.json({ error: "Payment date is invalid." }, { status: 400 })
   }
 
   const { rows: clientRows } = await pool.query<{ owner_employee_id: string | null; company: string }>(
@@ -90,7 +95,8 @@ export async function POST(request: Request) {
     await client.query("commit")
   } catch (error) {
     await client.query("rollback")
-    throw error
+    logError("payments.create", error, { clientId, callerId: caller.id })
+    return NextResponse.json({ error: "Could not record this payment. Please try again." }, { status: 500 })
   } finally {
     client.release()
   }

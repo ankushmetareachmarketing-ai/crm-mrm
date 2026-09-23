@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getCurrentEmployeeOrNull } from "@/lib/auth/current-user"
 import { pool } from "@/lib/db"
+import { logError } from "@/lib/logger"
 
 const VALID_STATUSES = new Set([
   "Not Called",
@@ -95,7 +96,8 @@ export async function POST(request: Request) {
     await client.query("commit")
   } catch (error) {
     await client.query("rollback")
-    throw error
+    logError("call-list.create", error, { callerId: caller.id, count: cleaned.length })
+    return NextResponse.json({ error: "Could not save these entries. Please try again." }, { status: 500 })
   } finally {
     client.release()
   }

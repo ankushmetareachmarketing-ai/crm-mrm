@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getCurrentEmployeeOrNull } from "@/lib/auth/current-user"
 import { pool } from "@/lib/db"
 import { encryptSecret } from "@/lib/crypto"
+import { logError } from "@/lib/logger"
 
 function canManage(role: string) {
   return role === "Owner" || role === "HR"
@@ -66,7 +67,8 @@ export async function PATCH(
     })
   } catch (error) {
     await client.query("rollback")
-    throw error
+    logError("employees.credentials.update", error, { employeeId: id, credentialId, callerId: caller.id })
+    return NextResponse.json({ error: "Could not update this credential. Please try again." }, { status: 500 })
   } finally {
     client.release()
   }
@@ -112,7 +114,8 @@ export async function DELETE(
     return NextResponse.json({ ok: true })
   } catch (error) {
     await client.query("rollback")
-    throw error
+    logError("employees.credentials.delete", error, { employeeId: id, credentialId, callerId: caller.id })
+    return NextResponse.json({ error: "Could not delete this credential. Please try again." }, { status: 500 })
   } finally {
     client.release()
   }

@@ -22,6 +22,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true })
   }
 
+  // Cooldown: don't let this be spammed to flood the table (or an inbox,
+  // once real email is wired up) — same "ok" response either way so the
+  // caller can't tell a cooldown from a fresh token being issued.
+  const { rows: recentRows } = await pool.query(
+    `select 1 from public.password_reset_tokens
+     where employee_id = $1 and created_at > now() - interval '2 minutes'`,
+    [employee.id]
+  )
+  if (recentRows.length > 0) {
+    return NextResponse.json({ ok: true })
+  }
+
   const { token, tokenHash, expiresAt } = generateResetToken()
   await pool.query(
     `insert into public.password_reset_tokens (employee_id, token_hash, expires_at)

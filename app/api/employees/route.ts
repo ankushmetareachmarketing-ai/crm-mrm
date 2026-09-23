@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { revalidateTag } from "next/cache"
 import { getCurrentEmployeeOrNull } from "@/lib/auth/current-user"
 import { pool } from "@/lib/db"
 import { hashPassword } from "@/lib/auth/password"
@@ -77,6 +78,8 @@ export async function POST(request: Request) {
     `insert into public.notifications (title, detail) values ($1, $2)`,
     ["New employee added", `${name} was added as ${profileName}`]
   )
+
+  revalidateTag("employees-list", "max")
 
   return NextResponse.json(
     { employee: { ...employee, access_profiles: { name: profileName } } },

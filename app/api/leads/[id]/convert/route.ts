@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getCurrentEmployeeOrNull } from "@/lib/auth/current-user"
 import { assertOwnsOrIsOwner, ForbiddenError } from "@/lib/auth/ownership"
 import { pool } from "@/lib/db"
+import { logError } from "@/lib/logger"
 
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const caller = await getCurrentEmployeeOrNull()
@@ -70,7 +71,8 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ clientId }, { status: 201 })
   } catch (error) {
     await client.query("rollback")
-    throw error
+    logError("leads.convert", error, { leadId: id, callerId: caller.id })
+    return NextResponse.json({ error: "Could not convert this lead. Please try again." }, { status: 500 })
   } finally {
     client.release()
   }

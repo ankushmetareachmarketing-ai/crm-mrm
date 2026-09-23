@@ -2,6 +2,7 @@ import { notFound } from "next/navigation"
 import { pool } from "@/lib/db"
 import { getCurrentEmployee } from "@/lib/auth/current-user"
 import { decryptSecret } from "@/lib/crypto"
+import { getAllEmployeeOptions } from "@/lib/data/employees"
 import { PasswordManagerClient } from "./password-manager-client"
 
 export default async function PasswordManagerPage() {
@@ -10,7 +11,7 @@ export default async function PasswordManagerPage() {
     notFound()
   }
 
-  const [credentialsResult, employeesResult] = await Promise.all([
+  const [credentialsResult, employees] = await Promise.all([
     pool.query<{
       id: string
       employee_id: string
@@ -27,7 +28,7 @@ export default async function PasswordManagerPage() {
        left join public.employees u on u.id = c.updated_by_employee_id
        order by emp.name, c.created_at`
     ),
-    pool.query<{ id: string; name: string }>(`select id, name from public.employees order by name`),
+    getAllEmployeeOptions(),
   ])
 
   const credentials = credentialsResult.rows.map((c) => ({
@@ -40,5 +41,5 @@ export default async function PasswordManagerPage() {
     updatedBy: c.updated_by_name,
   }))
 
-  return <PasswordManagerClient credentials={credentials} employees={employeesResult.rows} />
+  return <PasswordManagerClient credentials={credentials} employees={employees} />
 }

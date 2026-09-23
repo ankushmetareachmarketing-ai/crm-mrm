@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getCurrentEmployeeOrNull } from "@/lib/auth/current-user"
 import { assertOwnsOrIsOwner, ForbiddenError } from "@/lib/auth/ownership"
 import { pool } from "@/lib/db"
+import { isValidDateString } from "@/lib/validate"
 
 const EDITABLE_FIELDS: Record<string, string> = {
   company: "company",
@@ -52,6 +53,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // Only the Owner may reassign a client to a different employee.
   if (caller.role !== "Owner") {
     delete body.ownerEmployeeId
+  }
+
+  if (body.renewalDate && !isValidDateString(body.renewalDate)) {
+    return NextResponse.json({ error: "Renewal date is invalid." }, { status: 400 })
   }
 
   const setClauses: string[] = []

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { revalidateTag } from "next/cache"
 import { getCurrentEmployeeOrNull } from "@/lib/auth/current-user"
 import { pool } from "@/lib/db"
 
@@ -54,6 +55,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   values.push(id)
   await pool.query(`update public.employees set ${fields.join(", ")} where id = $${i}`, values)
+
+  if (active !== undefined) {
+    revalidateTag("employees-list", "max")
+  }
 
   return NextResponse.json({ ok: true })
 }

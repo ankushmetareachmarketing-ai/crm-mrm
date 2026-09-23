@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getCurrentEmployeeOrNull } from "@/lib/auth/current-user"
 import { pool } from "@/lib/db"
+import { logError } from "@/lib/logger"
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const caller = await getCurrentEmployeeOrNull()
@@ -71,7 +72,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     await client.query("commit")
   } catch (error) {
     await client.query("rollback")
-    throw error
+    logError("payments.approve", error, { paymentId: id, callerId: caller.id })
+    return NextResponse.json({ error: "Could not process this decision. Please try again." }, { status: 500 })
   } finally {
     client.release()
   }

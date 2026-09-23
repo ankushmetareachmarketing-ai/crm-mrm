@@ -1,6 +1,7 @@
 import { pool } from "@/lib/db"
 import type { Lead } from "@/lib/types"
 import { getCurrentEmployee } from "@/lib/auth/current-user"
+import { getActiveEmployeeOptions } from "@/lib/data/employees"
 import { LeadsClient } from "./leads-client"
 
 interface LeadRow {
@@ -28,7 +29,7 @@ export default async function LeadsPage() {
   const currentEmployee = await getCurrentEmployee()
   const isOwner = currentEmployee.role === "Owner"
 
-  const [leadsResult, employeesResult] = await Promise.all([
+  const [leadsResult, employees] = await Promise.all([
     pool.query<LeadRow>(
       `select l.id, l.company, l.contact, l.designation, l.source, l.industry, l.stage,
               l.owner_employee_id, e.name as owner_name,
@@ -41,9 +42,7 @@ export default async function LeadsPage() {
        order by l.created_at desc`,
       isOwner ? [] : [currentEmployee.id]
     ),
-    pool.query<{ id: string; name: string }>(
-      `select id, name from public.employees where active order by name`
-    ),
+    getActiveEmployeeOptions(),
   ])
 
   const leads: Lead[] = leadsResult.rows.map((l) => ({
@@ -70,7 +69,7 @@ export default async function LeadsPage() {
   return (
     <LeadsClient
       initialLeads={leads}
-      employees={employeesResult.rows}
+      employees={employees}
       currentEmployeeId={currentEmployee.id}
       isOwner={isOwner}
     />
