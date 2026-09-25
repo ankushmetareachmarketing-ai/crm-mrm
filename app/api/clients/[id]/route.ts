@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getCurrentEmployeeOrNull } from "@/lib/auth/current-user"
 import { assertOwnsOrIsOwner, ForbiddenError } from "@/lib/auth/ownership"
 import { pool } from "@/lib/db"
+import { notify } from "@/lib/notifications"
 import { isValidDateString } from "@/lib/validate"
 
 const EDITABLE_FIELDS: Record<string, string> = {
@@ -86,6 +87,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
      values ('client', $1, $2, 'Updated', $3)`,
     [id, caller.id, `Updated: ${changes.join(", ")}`]
   )
+
+  if (body.ownerEmployeeId && body.ownerEmployeeId !== existingRows[0].owner_employee_id) {
+    await notify({
+      employeeIds: [body.ownerEmployeeId],
+      actorId: caller.id,
+      kind: "client",
+      title: "Client assigned to you",
+      detail: `${caller.name} gave you the client ${body.company ?? id}.`,
+      link: `/crm/clients/${id}`,
+    })
+  }
 
   return NextResponse.json({ ok: true })
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { revalidateTag } from "next/cache"
 import { getCurrentEmployeeOrNull } from "@/lib/auth/current-user"
 import { pool } from "@/lib/db"
+import { notify } from "@/lib/notifications"
 import { hashPassword } from "@/lib/auth/password"
 
 export async function POST(request: Request) {
@@ -74,10 +75,14 @@ export async function POST(request: Request) {
   )
   const profileName = profileRows[0]?.name ?? "—"
 
-  await pool.query(
-    `insert into public.notifications (title, detail) values ($1, $2)`,
-    ["New employee added", `${name} was added as ${profileName}`]
-  )
+  await notify({
+    roles: ["Owner", "HR"],
+    actorId: caller.id,
+    kind: "employee",
+    title: "New employee added",
+    detail: `${name} was added as ${profileName}.`,
+    link: `/hr/employees/${employee.id}`,
+  })
 
   revalidateTag("employees-list", "max")
 

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
-import { ChevronRight, Pencil, Plus } from "lucide-react"
+import { ChevronRight, Pencil, Plus } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
 import { StatusBadge } from "@/components/status-badge"
 import { ImageUpload } from "@/components/image-upload"

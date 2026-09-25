@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
-import { ArrowRightCircle, Pencil, Plus, Search } from "lucide-react"
+import { ArrowRightCircle, Pencil, Plus, Search } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
 import { StatusBadge } from "@/components/status-badge"
 import { formatDate, getInitials } from "@/lib/format"

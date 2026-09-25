@@ -1,7 +1,8 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect } from "react"
-import { AlertTriangle } from "lucide-react"
+import { AlertTriangle } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -34,7 +35,7 @@ export default function DashboardError({ error, reset }: { error: Error & { dige
         </CardHeader>
         <CardContent className="flex gap-2">
           <Button onClick={() => reset()}>Try again</Button>
-          <Button variant="outline" onClick={() => (window.location.href = "/")}>
+          <Button variant="outline" nativeButton={false} render={<Link href="/" />}>
             Go to dashboard
           </Button>
         </CardContent>

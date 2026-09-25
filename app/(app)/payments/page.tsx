@@ -35,7 +35,7 @@ export default async function PaymentsPage() {
   const currentEmployee = await getCurrentEmployee()
   const isOwner = currentEmployee.role === "Owner"
   const canSeeAll = isOwner || currentEmployee.role === "HR"
-  const canApprove = canSeeAll
+  const canApprove = isOwner
   const scopeClause = canSeeAll ? "" : "and c.owner_employee_id = $1"
   const scopeParams = canSeeAll ? [] : [currentEmployee.id]
 

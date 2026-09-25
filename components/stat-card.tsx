@@ -1,5 +1,5 @@
 import Link from "next/link"
-import type { LucideIcon } from "lucide-react"
+import type { IconComponent } from "@/components/icons"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
@@ -14,7 +14,7 @@ export function StatCard({
 }: {
   label: string
   value: string
-  icon: LucideIcon
+  icon: IconComponent
   trend?: string
   trendTone?: "up" | "down" | "neutral"
   hint?: string

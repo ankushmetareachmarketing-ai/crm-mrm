@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
-import { Eye, EyeOff, KeyRound, Pencil, Plus, Search, Trash2 } from "lucide-react"
+import { Eye, EyeOff, KeyRound, Pencil, Plus, Search, Trash2 } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
 import { formatRelativeTime } from "@/lib/format"
 import { Button } from "@/components/ui/button"

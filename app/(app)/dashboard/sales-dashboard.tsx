@@ -1,16 +1,30 @@
 import Link from "next/link"
-import { CalendarClock, IndianRupee, Phone, Building2, PhoneCall, ThumbsDown, ThumbsUp, TrendingUp, RefreshCw } from "lucide-react"
+import {
+  CalendarClock,
+  IndianRupee,
+  Phone,
+  Building2,
+  PhoneCall,
+  ThumbsDown,
+  ThumbsUp,
+  TrendingUp,
+  RefreshCw,
+  ReceiptText,
+  Wallet,
+} from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
 import { StatCard } from "@/components/stat-card"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { formatCurrency, formatDate, formatRelativeTime } from "@/lib/format"
 import { pool } from "@/lib/db"
+import { getClientLedgerSummaries } from "@/lib/data/client-ledger"
 import { ActivityComposer } from "./activity-composer"
 
 export async function SalesDashboard({ employeeId }: { employeeId: string }) {
   const [
-    dueClientsResult,
+    ledgerSummaries,
+    monthTotalsResult,
     remindersResult,
     callsTodayResult,
     followUpsResult,
@@ -20,12 +34,18 @@ export async function SalesDashboard({ employeeId }: { employeeId: string }) {
     leadStatsResult,
     renewalsResult,
   ] = await Promise.all([
-    pool.query<{ id: string; company: string; balance: string; last_receipt_date: string | null }>(
-      `select id, company, balance::text, last_receipt_date::text
-       from public.clients
-       where owner_employee_id = $1 and balance > 0
-       order by balance desc
-       limit 6`,
+    getClientLedgerSummaries(employeeId),
+    // Everything on the Sales dashboard is without GST (base amounts only).
+    pool.query<{ billed: string; received: string }>(
+      `select
+         (select coalesce(sum(ch.base_amount), 0)
+          from public.client_charges ch join public.clients c on c.id = ch.client_id
+          where c.owner_employee_id = $1 and ch.kind = 'Service' and ch.approval_status = 'Approved'
+            and date_trunc('month', ch.charge_date) = date_trunc('month', current_date))::text as billed,
+         (select coalesce(sum(p.base_amount), 0)
+          from public.payments p join public.clients c on c.id = p.client_id
+          where c.owner_employee_id = $1 and p.status = 'Received' and p.approval_status = 'Approved'
+            and date_trunc('month', p.payment_date) = date_trunc('month', current_date))::text as received`,
       [employeeId]
     ),
     pool.query<{ id: string; company: string; due_date: string; expected_amount: string | null }>(
@@ -82,7 +102,10 @@ export async function SalesDashboard({ employeeId }: { employeeId: string }) {
     ),
   ])
 
-  const totalDue = dueClientsResult.rows.reduce((sum, c) => sum + Number(c.balance), 0)
+  const dueClients = ledgerSummaries.filter((s) => s.dueBase > 0).sort((a, b) => b.dueBase - a.dueBase)
+  const totalDue = dueClients.reduce((sum, c) => sum + c.dueBase, 0)
+  const billedThisMonth = Number(monthTotalsResult.rows[0].billed)
+  const receivedThisMonth = Number(monthTotalsResult.rows[0].received)
   const callsToday = callsTodayResult.rows.reduce((sum, r) => sum + Number(r.count), 0)
   const interestedToday = callsTodayResult.rows.find((r) => r.outcome === "Interested")?.count ?? "0"
   const notInterestedToday = callsTodayResult.rows.find((r) => r.outcome === "Not Interested")?.count ?? "0"
@@ -109,11 +132,11 @@ export async function SalesDashboard({ employeeId }: { employeeId: string }) {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <StatCard label="My clients" value={String(myClientsResult.rows.length)} icon={Building2} href="/crm/clients" />
         <StatCard
-          label="Payments due"
+          label="Balance due"
           value={formatCurrency(totalDue)}
           icon={IndianRupee}
-          hint={`${dueClientsResult.rows.length} clients`}
-          href="/payments"
+          hint={`${dueClients.length} clients · without GST`}
+          href="/sales-details"
         />
         <StatCard
           label="Calls today"
@@ -145,30 +168,56 @@ export async function SalesDashboard({ employeeId }: { employeeId: string }) {
         />
       </div>
 
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard
+          label="Billed this month"
+          value={formatCurrency(billedThisMonth)}
+          icon={ReceiptText}
+          hint="Services taken · without GST"
+          href="/sales-details"
+        />
+        <StatCard
+          label="Received this month"
+          value={formatCurrency(receivedThisMonth)}
+          icon={Wallet}
+          hint="Approved payments · without GST"
+          href="/sales-details"
+        />
+        <StatCard
+          label="Total balance due"
+          value={formatCurrency(totalDue)}
+          icon={IndianRupee}
+          hint="All months carried forward · without GST"
+          href="/sales-details"
+        />
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Payments due</CardTitle>
-              <CardDescription>Your clients with an outstanding balance.</CardDescription>
+              <CardDescription>Your clients with a balance due (without GST).</CardDescription>
             </div>
-            <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/payments" />}>
+            <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/sales-details" />}>
               View all
             </Button>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-            {dueClientsResult.rows.map((c) => (
-              <div key={c.id} className="flex items-center justify-between rounded-lg border p-3">
+            {dueClients.slice(0, 6).map((c) => (
+              <div key={c.clientId} className="flex items-center justify-between rounded-lg border p-3">
                 <div>
-                  <Link href={`/crm/clients/${c.id}`} className="text-sm font-medium hover:underline">
+                  <Link href={`/sales-details/${c.clientId}`} className="text-sm font-medium hover:underline">
                     {c.company}
                   </Link>
-                  <p className="text-xs text-muted-foreground">Last receipt {formatDate(c.last_receipt_date)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Billed {formatCurrency(c.billedBase)} · Received {formatCurrency(c.receivedBase)}
+                  </p>
                 </div>
-                <span className="text-sm font-medium text-destructive">{formatCurrency(Number(c.balance))}</span>
+                <span className="text-sm font-medium text-destructive">{formatCurrency(c.dueBase)}</span>
               </div>
             ))}
-            {dueClientsResult.rows.length === 0 ? (
+            {dueClients.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted-foreground">No dues pending. Nice.</p>
             ) : null}
             {remindersResult.rows.length > 0 ? (

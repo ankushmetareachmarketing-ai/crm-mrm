@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, Eye, EyeOff, KeyRound, Pencil, Plus, Trash2 } from "lucide-react"
+import { ArrowLeft, Eye, EyeOff, KeyRound, Pencil, Plus, Trash2 } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
 import { StatusBadge } from "@/components/status-badge"
 import { formatDate, formatRelativeTime } from "@/lib/format"

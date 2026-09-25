@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
 import { useRole } from "@/components/role-context"
 import { Button } from "@/components/ui/button"
@@ -19,13 +19,15 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
+import { GST_TYPES, type GstType } from "@/lib/billing"
+
 const methods = ["Cash", "Bank Transfer", "UPI", "Cheque", "Other"]
 const statuses = ["Received", "Pending", "Failed", "Refunded"]
 
 export function PaymentForm({ clients }: { clients: { id: string; company: string; balance: number }[] }) {
   const router = useRouter()
   const { role } = useRole()
-  const needsApproval = role !== "Owner" && role !== "HR"
+  const needsApproval = role !== "Owner"
   const [form, setForm] = useState({
     clientId: "",
     amount: "",
@@ -33,6 +35,7 @@ export function PaymentForm({ clients }: { clients: { id: string; company: strin
     method: "Bank Transfer",
     reference: "",
     status: "Received",
+    gstType: "Non GST" as GstType,
     notes: "",
   })
   const [error, setError] = useState<string | null>(null)
@@ -144,9 +147,28 @@ export function PaymentForm({ clients }: { clients: { id: string; company: strin
             </div>
           </div>
 
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="pay-gst">GST</Label>
+            <Select
+              value={form.gstType}
+              onValueChange={(v) => setForm((f) => ({ ...f, gstType: (v as GstType) ?? f.gstType }))}
+            >
+              <SelectTrigger id="pay-gst" className="h-10 w-full cursor-pointer text-base sm:w-64">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {GST_TYPES.map((g) => (
+                  <SelectItem key={g} value={g}>
+                    {g === "With GST" ? "With GST (includes 18%)" : g}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {needsApproval ? (
             <p className="text-xs text-muted-foreground">
-              This is submitted as a &quot;Received&quot; payment for HR to verify — it reduces the client&apos;s due
+              This is submitted as a &quot;Received&quot; payment for the Owner to approve — it reduces the client&apos;s due
               balance only once approved.
             </p>
           ) : (

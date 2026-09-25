@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { CalendarCheck, IndianRupee, KeyRound, UserCheck, Users2 } from "lucide-react"
+import { CalendarCheck, IndianRupee, KeyRound, UserCheck, Users2 } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
 import { StatCard } from "@/components/stat-card"
 import { StatusBadge } from "@/components/status-badge"
@@ -73,7 +73,7 @@ export async function HrDashboard() {
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Payments awaiting approval</CardTitle>
-              <CardDescription>Recorded by Sales, waiting on HR sign-off.</CardDescription>
+              <CardDescription>Recorded by Sales, waiting on the Owner&apos;s approval.</CardDescription>
             </div>
             <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/payments" />}>
               Review
@@ -90,7 +90,7 @@ export async function HrDashboard() {
               </div>
             ))}
             {pendingPayments.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">Nothing waiting on you. Nice.</p>
+              <p className="py-6 text-center text-sm text-muted-foreground">Nothing awaiting approval.</p>
             ) : null}
           </CardContent>
         </Card>

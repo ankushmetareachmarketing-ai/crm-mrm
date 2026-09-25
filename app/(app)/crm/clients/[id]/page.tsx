@@ -1,14 +1,13 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft } from "@/components/icons"
 import { StatusBadge } from "@/components/status-badge"
 import { StatCard } from "@/components/stat-card"
 import { formatCurrency, formatDate, formatRelativeTime } from "@/lib/format"
-import { campaigns, meetings } from "@/lib/mock-data"
 import { pool } from "@/lib/db"
 import { getCurrentEmployee } from "@/lib/auth/current-user"
 import type { Client, ClientContact, ClientNote, ActivityEntry, Payment } from "@/lib/types"
-import { Wallet, ReceiptText, Building2, CalendarClock, CalendarCheck } from "lucide-react"
+import { Wallet, ReceiptText, Building2, CalendarClock, CalendarCheck } from "@/components/icons"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
@@ -192,8 +191,6 @@ export default async function ClientDetailPage({
   const totalReceived = payments
     .filter((p) => p.approvalStatus === "Approved")
     .reduce((sum, p) => sum + p.amount, 0)
-  const clientCampaigns = campaigns.filter((c) => c.client === client.company)
-  const clientMeetings = meetings.filter((m) => m.client === client.company)
   const due = Math.max(client.balance, 0)
   const advance = Math.max(-client.balance, 0)
 
@@ -231,7 +228,18 @@ export default async function ClientDetailPage({
               </p>
             </div>
           </div>
-          <StatusBadge status={client.status} />
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge status={client.status} />
+            <Button
+              size="sm"
+              variant="outline"
+              className="cursor-pointer"
+              nativeButton={false}
+              render={<Link href={`/sales-details/${client.id}`} />}
+            >
+              Services &amp; payments
+            </Button>
+          </div>
         </div>
         {addressParts.length > 0 || client.description ? (
           <div className="text-sm text-muted-foreground">
@@ -252,8 +260,6 @@ export default async function ClientDetailPage({
       <Tabs defaultValue="payments">
         <TabsList className="h-11 flex-wrap p-1">
           <TabsTrigger value="payments" className="px-3 py-1.5">Payments</TabsTrigger>
-          <TabsTrigger value="campaigns" className="px-3 py-1.5">Campaigns</TabsTrigger>
-          <TabsTrigger value="meetings" className="px-3 py-1.5">Meetings</TabsTrigger>
           <TabsTrigger value="contacts" className="px-3 py-1.5">Contacts</TabsTrigger>
           <TabsTrigger value="notes" className="px-3 py-1.5">Notes</TabsTrigger>
           <TabsTrigger value="activity" className="px-3 py-1.5">Activity</TabsTrigger>
@@ -302,89 +308,8 @@ export default async function ClientDetailPage({
                 </TableBody>
               </Table>
               <p className="mt-3 text-xs text-muted-foreground">
-                A pending payment does not change the confirmed due balance until Owner or HR approval posts it.
+                A pending payment does not change the confirmed due balance until the Owner approves it.
               </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="campaigns">
-          <Card>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Campaign</TableHead>
-                    <TableHead>Service</TableHead>
-                    <TableHead>Vendor</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Agreed amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {clientCampaigns.map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell className="font-mono text-xs">{c.id}</TableCell>
-                      <TableCell>{c.service}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{c.vendor}</TableCell>
-                      <TableCell>
-                        <StatusBadge status={c.status} />
-                      </TableCell>
-                      <TableCell className="text-right">{formatCurrency(c.agreedAmount)}</TableCell>
-                    </TableRow>
-                  ))}
-                  {clientCampaigns.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
-                        No campaigns yet for this client.
-                      </TableCell>
-                    </TableRow>
-                  ) : null}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="meetings">
-          <Card>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Planned</TableHead>
-                    <TableHead>Responsible</TableHead>
-                    <TableHead>Person met</TableHead>
-                    <TableHead>Requirement</TableHead>
-                    <TableHead>Outcome</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {clientMeetings.map((m) => (
-                    <TableRow key={m.id}>
-                      <TableCell className="text-sm">{m.plannedAt}</TableCell>
-                      <TableCell className="text-sm">{m.responsible}</TableCell>
-                      <TableCell>
-                        <div className="text-sm">{m.personMet}</div>
-                        <div className="text-xs text-muted-foreground">{m.designation}</div>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{m.requirement}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{m.outcome}</TableCell>
-                      <TableCell>
-                        <StatusBadge status={m.status} />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {clientMeetings.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
-                        No meetings logged for this client.
-                      </TableCell>
-                    </TableRow>
-                  ) : null}
-                </TableBody>
-              </Table>
             </CardContent>
           </Card>
         </TabsContent>

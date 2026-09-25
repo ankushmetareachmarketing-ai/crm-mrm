@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Info, Plus } from "lucide-react"
+import { Info, Plus } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
 import { StatusBadge } from "@/components/status-badge"
 import { useRole } from "@/components/role-context"

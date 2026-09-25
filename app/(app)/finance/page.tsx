@@ -1,5 +1,7 @@
 import Link from "next/link"
-import { Wallet, ReceiptText, TrendingUp, ShieldAlert } from "lucide-react"
+import { notFound } from "next/navigation"
+import { getCurrentEmployee } from "@/lib/auth/current-user"
+import { Wallet, ReceiptText, TrendingUp, ShieldAlert } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
 import { StatCard } from "@/components/stat-card"
 import { StatusBadge } from "@/components/status-badge"
@@ -16,6 +18,10 @@ import {
 } from "@/components/ui/table"
 
 export default async function FinancePage() {
+  // Company-wide balances: HR only (Owner uses Sales Details).
+  const currentEmployee = await getCurrentEmployee()
+  if (currentEmployee.role !== "HR") notFound()
+
   const [clientsResult, pendingResult, verifiedResult] = await Promise.all([
     pool.query<{ id: string; company: string; balance: string; last_receipt_date: string | null }>(
       `select id, company, balance::text, last_receipt_date::text from public.clients order by company`

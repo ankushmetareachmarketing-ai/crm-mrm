@@ -14,6 +14,7 @@ const STATUS_STYLES: Record<string, string> = {
   Converted: "bg-emerald-50 text-emerald-700 border-emerald-200",
   Interested: "bg-emerald-50 text-emerald-700 border-emerald-200",
   Created: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  "Paid in full": "bg-emerald-50 text-emerald-700 border-emerald-200",
   // warning
   Pending: "bg-amber-50 text-amber-700 border-amber-200",
   Submitted: "bg-amber-50 text-amber-700 border-amber-200",
@@ -22,6 +23,7 @@ const STATUS_STYLES: Record<string, string> = {
   "Awaiting Client": "bg-amber-50 text-amber-700 border-amber-200",
   "On Hold": "bg-amber-50 text-amber-700 border-amber-200",
   Medium: "bg-amber-50 text-amber-700 border-amber-200",
+  "Pay later": "bg-amber-50 text-amber-700 border-amber-200",
   // danger
   Rejected: "bg-rose-50 text-rose-700 border-rose-200",
   Failed: "bg-rose-50 text-rose-700 border-rose-200",
@@ -46,6 +48,9 @@ const STATUS_STYLES: Record<string, string> = {
   Field: "bg-sky-50 text-sky-700 border-sky-200",
   "Call Back": "bg-sky-50 text-sky-700 border-sky-200",
   Updated: "bg-sky-50 text-sky-700 border-sky-200",
+  "Part payment": "bg-sky-50 text-sky-700 border-sky-200",
+  Service: "bg-sky-50 text-sky-700 border-sky-200",
+  Payment: "bg-violet-50 text-violet-700 border-violet-200",
   // neutral
   Draft: "bg-slate-100 text-slate-600 border-slate-200",
   Closed: "bg-slate-100 text-slate-600 border-slate-200",

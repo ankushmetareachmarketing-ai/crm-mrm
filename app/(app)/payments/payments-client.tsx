@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
-import { CheckCircle2, Download, IndianRupee, Plus, XCircle } from "lucide-react"
+import { CheckCircle2, Download, IndianRupee, Plus, XCircle } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
 import { StatCard } from "@/components/stat-card"
 import { StatusBadge } from "@/components/status-badge"
@@ -166,7 +166,7 @@ export function PaymentsClient({
         <StatCard label="Collected (shown below)" value={formatCurrency(totalCollected)} icon={IndianRupee} />
         <StatCard label="Payments logged" value={String(payments.length)} icon={IndianRupee} />
         <StatCard
-          label="Awaiting HR approval"
+          label="Awaiting Owner approval"
           value={String(payments.filter((p) => p.approvalStatus === "Pending").length)}
           icon={IndianRupee}
         />
@@ -181,7 +181,7 @@ export function PaymentsClient({
               <CardDescription>
                 {canApprove
                   ? "Most recent receipts first. Approve or reject pending entries on the right."
-                  : "Most recent receipts first. New payments need HR approval before they reduce a client's balance."}
+                  : "Most recent receipts first. New payments need Owner approval before they reduce a client's balance."}
               </CardDescription>
             </div>
             <Button size="sm" variant="outline" onClick={exportPayments} disabled={payments.length === 0}>

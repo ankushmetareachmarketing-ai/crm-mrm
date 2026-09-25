@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getCurrentEmployeeOrNull } from "@/lib/auth/current-user"
 import { assertOwnsOrIsOwner, ForbiddenError } from "@/lib/auth/ownership"
 import { pool } from "@/lib/db"
+import { notify } from "@/lib/notifications"
 import { logError } from "@/lib/logger"
 
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -65,6 +66,19 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       `insert into public.activity_log (entity_type, entity_id, actor_employee_id, action, detail)
        values ('lead', $1, $2, 'Converted', $3), ('client', $4, $2, 'Onboarded', $5)`,
       [id, caller.id, `Converted to client ${clientId}`, clientId, `Converted from lead ${id}`]
+    )
+
+    await notify(
+      {
+        employeeIds: [lead.owner_employee_id],
+        roles: ["Owner"],
+        actorId: caller.id,
+        kind: "client",
+        title: "Lead won — new client",
+        detail: `${caller.name} turned the lead ${lead.company} into a client.`,
+        link: `/crm/clients/${clientId}`,
+      },
+      client
     )
 
     await client.query("commit")

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
 import { ImageUpload } from "@/components/image-upload"
 import { Button } from "@/components/ui/button"

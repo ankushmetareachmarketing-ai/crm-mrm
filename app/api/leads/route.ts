@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getCurrentEmployeeOrNull } from "@/lib/auth/current-user"
 import { pool } from "@/lib/db"
+import { notify } from "@/lib/notifications"
 import { isNonNegativeNumber, isValidDateString } from "@/lib/validate"
 
 export async function POST(request: Request) {
@@ -62,6 +63,16 @@ export async function POST(request: Request) {
      values ('lead', $1, $2, 'Created', 'Lead created via manual entry')`,
     [id, caller.id]
   )
+
+  await notify({
+    employeeIds: [resolvedOwnerId],
+    roles: caller.role === "Owner" ? [] : ["Owner"],
+    actorId: caller.id,
+    kind: "lead",
+    title: resolvedOwnerId === caller.id ? "New lead added" : "New lead assigned to you",
+    detail: `${caller.name} added ${company} (${contact}).`,
+    link: "/crm/leads",
+  })
 
   return NextResponse.json({ id }, { status: 201 })
 }

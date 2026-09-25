@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
-import { Download, IndianRupee, Receipt, Users2, TrendingUp } from "lucide-react"
+import { Download, IndianRupee, Receipt, Users2, TrendingUp } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
 import { StatCard } from "@/components/stat-card"
 import { StatusBadge } from "@/components/status-badge"

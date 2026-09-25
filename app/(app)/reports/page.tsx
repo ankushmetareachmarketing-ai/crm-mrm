@@ -7,7 +7,7 @@ import {
   Users,
   Banknote,
   History,
-} from "lucide-react"
+} from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
 import { auditLog } from "@/lib/mock-data"
 import { Button } from "@/components/ui/button"

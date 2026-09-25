@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useRef, useState } from "react"
-import { CalendarClock, ChevronDown, Download, Phone, PhoneCall, Plus, ThumbsDown, ThumbsUp, Upload } from "lucide-react"
+import { CalendarClock, ChevronDown, Download, Phone, PhoneCall, Plus, ThumbsDown, ThumbsUp, Upload } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
 import { StatCard } from "@/components/stat-card"
 import { StatusBadge } from "@/components/status-badge"
