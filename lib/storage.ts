@@ -43,3 +43,67 @@ export async function uploadImage(kind: UploadKind, file: File): Promise<string>
   const { data } = client.storage.from(kind).getPublicUrl(path)
   return data.publicUrl
 }
+
+// ---------------------------------------------------------------------
+// Employee documents (Aadhaar, PAN, certificates…) live in a PRIVATE
+// bucket. Files are never public: the app checks who is asking, then
+// hands out a signed URL that expires after a minute.
+// ---------------------------------------------------------------------
+
+const DOCUMENTS_BUCKET = "employee-documents"
+const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024 // 10MB
+const DOCUMENT_TYPES = new Set([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+])
+
+let documentsBucketReady = false
+
+/** Creates the private bucket the first time a document is uploaded. */
+async function ensureDocumentsBucket(client: SupabaseClient) {
+  if (documentsBucketReady) return
+  const { data } = await client.storage.getBucket(DOCUMENTS_BUCKET)
+  if (!data) {
+    const { error } = await client.storage.createBucket(DOCUMENTS_BUCKET, {
+      public: false,
+      fileSizeLimit: MAX_DOCUMENT_BYTES,
+    })
+    if (error && !/already exists/i.test(error.message)) throw new Error(error.message)
+  }
+  documentsBucketReady = true
+}
+
+export async function uploadEmployeeDocument(employeeId: string, file: File) {
+  if (!DOCUMENT_TYPES.has(file.type)) {
+    throw new Error("Only PDF, Word, PNG, JPEG or WEBP files are allowed.")
+  }
+  if (file.size > MAX_DOCUMENT_BYTES) {
+    throw new Error("File must be under 10MB.")
+  }
+  const client = getStorageClient()
+  await ensureDocumentsBucket(client)
+  const extension = (file.name.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "")
+  const path = `${employeeId}/${randomUUID()}.${extension}`
+  const { error } = await client.storage.from(DOCUMENTS_BUCKET).upload(path, file, {
+    contentType: file.type,
+    upsert: false,
+  })
+  if (error) throw new Error(error.message)
+  return path
+}
+
+export async function signedEmployeeDocumentUrl(path: string, downloadName?: string) {
+  const { data, error } = await getStorageClient()
+    .storage.from(DOCUMENTS_BUCKET)
+    .createSignedUrl(path, 60, downloadName ? { download: downloadName } : undefined)
+  if (error || !data) throw new Error(error?.message ?? "Could not open this document.")
+  return data.signedUrl
+}
+
+export async function deleteEmployeeDocument(path: string) {
+  await getStorageClient().storage.from(DOCUMENTS_BUCKET).remove([path])
+}

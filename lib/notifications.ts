@@ -11,6 +11,8 @@ interface NotifyInput {
   roles?: Role[]
   /** …and/or these specific employees. */
   employeeIds?: (string | null | undefined)[]
+  /** Every active employee (company-wide announcements). */
+  everyone?: boolean
   /** The person who caused it — never notified about their own action. */
   actorId: string
   kind: NotificationKind
@@ -29,7 +31,8 @@ interface NotifyInput {
 export async function notify(input: NotifyInput, db?: PoolClient) {
   const employeeIds = (input.employeeIds ?? []).filter((id): id is string => Boolean(id))
   const roles = input.roles ?? []
-  if (employeeIds.length === 0 && roles.length === 0) return
+  const everyone = Boolean(input.everyone)
+  if (!everyone && employeeIds.length === 0 && roles.length === 0) return
 
   const run = (conn: Pool | PoolClient) =>
     conn.query(
@@ -37,8 +40,8 @@ export async function notify(input: NotifyInput, db?: PoolClient) {
        select e.id, $1, $2, $3, $4, $5
        from public.employees e
        join public.access_profiles p on p.id = e.access_profile_id
-       where e.active and e.id <> $1 and (e.id = any($6::uuid[]) or p.name = any($7::text[]))`,
-      [input.actorId, input.kind, input.title, input.detail, input.link, employeeIds, roles]
+       where e.active and e.id <> $1 and ($8 or e.id = any($6::uuid[]) or p.name = any($7::text[]))`,
+      [input.actorId, input.kind, input.title, input.detail, input.link, employeeIds, roles, everyone]
     )
 
   if (db) {

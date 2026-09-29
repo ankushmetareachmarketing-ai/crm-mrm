@@ -3,6 +3,7 @@ import { getCurrentEmployeeOrNull } from "@/lib/auth/current-user"
 import { pool } from "@/lib/db"
 import { isNonNegativeNumber, isValidDateString, isValidTimeString } from "@/lib/validate"
 import type { AttendanceStatus } from "@/lib/types"
+import { OFFICE_TZ } from "@/lib/hr/time"
 
 const VALID_STATUSES: AttendanceStatus[] = ["Present", "Half Day", "Absent", "On Leave"]
 
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
   }>(
     `insert into public.attendance_entries
        (employee_id, work_date, check_in_at, check_out_at, status, penalty_amount, penalty_reason, notes)
-     values ($1, $2, $3, $4, $5, $6, $7, $8)
+     values ($1, $2, $3::timestamp at time zone '${OFFICE_TZ}', $4::timestamp at time zone '${OFFICE_TZ}', $5, $6, $7, $8)
      on conflict (employee_id, work_date) do update set
        check_in_at = excluded.check_in_at,
        check_out_at = excluded.check_out_at,
@@ -54,7 +55,8 @@ export async function POST(request: Request) {
        penalty_reason = excluded.penalty_reason,
        notes = excluded.notes,
        updated_at = now()
-     returning id, check_in_at::text, check_out_at::text, status, penalty_amount::text, penalty_reason, notes`,
+     returning id, to_json(check_in_at)#>>'{}' as check_in_at, to_json(check_out_at)#>>'{}' as check_out_at,
+               status, penalty_amount::text, penalty_reason, notes`,
     [
       employeeId,
       workDate,
