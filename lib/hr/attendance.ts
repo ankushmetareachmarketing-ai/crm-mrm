@@ -7,6 +7,9 @@ import { datesBetween, officeDateKey, officeMinutesOfDay, timeToMinutes, weekday
 export interface HrSettings {
   officeStart: string
   officeEnd: string
+  /** Lunch break — time inside it is not counted as work. */
+  lunchStart: string
+  lunchEnd: string
   graceMinutes: number
   fullDayHours: number
   halfDayHours: number
@@ -15,9 +18,11 @@ export interface HrSettings {
 
 export const DEFAULT_HR_SETTINGS: HrSettings = {
   officeStart: "10:00",
-  officeEnd: "19:00",
+  officeEnd: "18:00",
+  lunchStart: "13:30",
+  lunchEnd: "14:00",
   graceMinutes: 15,
-  fullDayHours: 8,
+  fullDayHours: 7.5,
   halfDayHours: 4,
   weeklyOffs: [0],
 }
@@ -52,9 +57,15 @@ export function attendanceMetrics(record: AttendanceRecord, settings: HrSettings
   const inProgress = Boolean(record.checkInAt && !record.checkOutAt && record.workDate === officeDateKey(now))
 
   let workedMinutes = 0
-  if (record.checkInAt) {
+  if (record.checkInAt && inMin !== null) {
     const endAt = record.checkOutAt ? new Date(record.checkOutAt) : inProgress ? now : null
-    if (endAt) workedMinutes = Math.max(0, Math.round((endAt.getTime() - new Date(record.checkInAt).getTime()) / 60000))
+    if (endAt) {
+      const total = Math.max(0, Math.round((endAt.getTime() - new Date(record.checkInAt).getTime()) / 60000))
+      // Take out the part of the lunch break that falls inside the day worked.
+      const lastMin = inMin + total
+      const lunch = Math.max(0, Math.min(lastMin, timeToMinutes(settings.lunchEnd)) - Math.max(inMin, timeToMinutes(settings.lunchStart)))
+      workedMinutes = Math.max(0, total - lunch)
+    }
   }
 
   const lateMinutes = inMin !== null ? Math.max(0, inMin - start) : 0

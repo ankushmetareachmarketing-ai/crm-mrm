@@ -54,6 +54,19 @@ import {
   Wallet1Stroke,
   XmarkCircleStroke,
   XmarkStroke,
+  Notebook1Stroke,
+  Hierarchy1Stroke,
+  Briefcase1Stroke,
+  Laptop2Stroke,
+  Book1Stroke,
+  EnterStroke,
+  ExitStroke,
+  Home2Stroke,
+  Flag1Stroke,
+  CheckSquare2Stroke,
+  Cake1Stroke,
+  Gears3Stroke,
+  Folder1Stroke,
 } from "@/components/lineicons-data"
 import type { IconData } from "@/components/lineicons-data"
 import { cn } from "@/lib/utils"
@@ -187,3 +200,19 @@ export const Phone = icon(Telephone1Stroke, "Phone")
 export const PhoneCall = icon(Telephone3Stroke, "PhoneCall")
 export const ThumbsUp = icon(ThumbsUp3Stroke, "ThumbsUp")
 export const ThumbsDown = icon(ThumbsDown3Stroke, "ThumbsDown")
+
+// HR
+export const FileText = icon(Notebook1Stroke, "FileText")
+export const Hierarchy = icon(Hierarchy1Stroke, "Hierarchy")
+export const Briefcase = icon(Briefcase1Stroke, "Briefcase")
+export const Laptop = icon(Laptop2Stroke, "Laptop")
+export const BookOpen = icon(Book1Stroke, "BookOpen")
+export const LogIn = icon(EnterStroke, "LogIn")
+export const LogOut = icon(ExitStroke, "LogOut")
+export const Home = icon(Home2Stroke, "Home")
+export const Flag = icon(Flag1Stroke, "Flag")
+export const ListChecks = icon(CheckSquare2Stroke, "ListChecks")
+export const Cake = icon(Cake1Stroke, "Cake")
+export const Settings2 = icon(Gears3Stroke, "Settings2")
+export const Folder = icon(Folder1Stroke, "Folder")
+export const UserPlus = icon(TargetUserStroke, "UserPlus")

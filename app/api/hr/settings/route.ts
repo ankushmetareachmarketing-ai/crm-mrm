@@ -14,6 +14,15 @@ export async function PATCH(request: Request) {
   if (!isValidTimeString(b.officeStart) || !isValidTimeString(b.officeEnd) || b.officeEnd <= b.officeStart) {
     return NextResponse.json({ error: "Office start and end times are invalid." }, { status: 400 })
   }
+  if (
+    !isValidTimeString(b.lunchStart) ||
+    !isValidTimeString(b.lunchEnd) ||
+    b.lunchEnd <= b.lunchStart ||
+    b.lunchStart < b.officeStart ||
+    b.lunchEnd > b.officeEnd
+  ) {
+    return NextResponse.json({ error: "Lunch break must be inside office hours and end after it starts." }, { status: 400 })
+  }
   const grace = Number(b.graceMinutes)
   const full = Number(b.fullDayHours)
   const half = Number(b.halfDayHours)
@@ -31,8 +40,8 @@ export async function PATCH(request: Request) {
   await pool.query(
     `update public.hr_settings
      set office_start = $1, office_end = $2, grace_minutes = $3, full_day_hours = $4, half_day_hours = $5,
-         weekly_offs = $6, updated_at = now()`,
-    [b.officeStart, b.officeEnd, grace, full, half, [...new Set(offs)]]
+         weekly_offs = $6, lunch_start = $7, lunch_end = $8, updated_at = now()`,
+    [b.officeStart, b.officeEnd, grace, full, half, [...new Set(offs)], b.lunchStart, b.lunchEnd]
   )
   return NextResponse.json({ ok: true })
 }

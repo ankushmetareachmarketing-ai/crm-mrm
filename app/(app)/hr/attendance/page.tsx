@@ -37,16 +37,16 @@ export default async function AttendancePage({
         ),
     canManage
       ? pool.query<EntryRow>(
-          `select a.id, a.employee_id, e.name as employee_name, a.work_date::text, a.check_in_at::text,
-                  a.check_out_at::text, a.status, a.penalty_amount::text, a.penalty_reason, a.notes
+          `select a.id, a.employee_id, e.name as employee_name, a.work_date::text, to_json(a.check_in_at)#>>'{}' as check_in_at,
+                  to_json(a.check_out_at)#>>'{}' as check_out_at, a.status, a.penalty_amount::text, a.penalty_reason, a.notes
            from public.attendance_entries a
            join public.employees e on e.id = a.employee_id
            where a.work_date >= current_date - interval '400 days'
            order by a.work_date desc`
         )
       : pool.query<EntryRow>(
-          `select a.id, a.employee_id, e.name as employee_name, a.work_date::text, a.check_in_at::text,
-                  a.check_out_at::text, a.status, a.penalty_amount::text, a.penalty_reason, a.notes
+          `select a.id, a.employee_id, e.name as employee_name, a.work_date::text, to_json(a.check_in_at)#>>'{}' as check_in_at,
+                  to_json(a.check_out_at)#>>'{}' as check_out_at, a.status, a.penalty_amount::text, a.penalty_reason, a.notes
            from public.attendance_entries a
            join public.employees e on e.id = a.employee_id
            where a.work_date >= current_date - interval '400 days' and a.employee_id = $1

@@ -7,6 +7,7 @@ import { notify } from "@/lib/notifications"
 import { hashPassword } from "@/lib/auth/password"
 import { EMPLOYMENT_TYPES } from "@/lib/hr/constants"
 import { createOnboardingTasks } from "@/lib/hr/onboarding"
+import { storePasswordInVault } from "@/lib/hr/password-vault"
 import { canManageHr, recordEmployeeHistory } from "@/lib/hr/server"
 import { isValidDateString } from "@/lib/validate"
 
@@ -104,6 +105,7 @@ export async function POST(request: Request) {
       ]
     )
     employee = rows[0]
+    await storePasswordInVault(db, employee.id, String(password), caller.id)
 
     await recordEmployeeHistory(db, [
       { employeeId: employee.id, actorId: caller.id, action: "Joined", field: "Role", after: roleName },

@@ -23,12 +23,15 @@ export async function getHrSettings(): Promise<HrSettings> {
   const { rows } = await pool.query<{
     office_start: string
     office_end: string
+    lunch_start: string
+    lunch_end: string
     grace_minutes: number
     full_day_hours: string
     half_day_hours: string
     weekly_offs: number[]
   }>(
     `select to_char(office_start, 'HH24:MI') as office_start, to_char(office_end, 'HH24:MI') as office_end,
+            to_char(lunch_start, 'HH24:MI') as lunch_start, to_char(lunch_end, 'HH24:MI') as lunch_end,
             grace_minutes, full_day_hours::text, half_day_hours::text, weekly_offs
      from public.hr_settings limit 1`
   )
@@ -37,6 +40,8 @@ export async function getHrSettings(): Promise<HrSettings> {
   return {
     officeStart: r.office_start,
     officeEnd: r.office_end,
+    lunchStart: r.lunch_start,
+    lunchEnd: r.lunch_end,
     graceMinutes: r.grace_minutes,
     fullDayHours: Number(r.full_day_hours),
     halfDayHours: Number(r.half_day_hours),
