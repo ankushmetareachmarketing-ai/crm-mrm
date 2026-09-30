@@ -11,6 +11,8 @@ interface PaymentRow {
   payment_date: string
   method: string | null
   reference: string | null
+  account_name: string | null
+  account_holder: string | null
   status: Payment["status"]
   notes: string | null
   recorded_by_name: string | null
@@ -41,7 +43,8 @@ export default async function PaymentsPage() {
 
   const [paymentsResult, remindersResult, clientsResult] = await Promise.all([
     pool.query<PaymentRow>(
-      `select p.id, p.client_id, c.company, p.amount::text, p.payment_date::text, p.method, p.reference,
+            `select p.id, p.client_id, c.company, p.amount::text, p.payment_date::text, p.method, p.reference,
+              p.account_name, p.account_holder,
               p.status, p.notes, e.name as recorded_by_name, p.created_at::text,
               p.approval_status, a.name as approved_by_name, p.approved_at::text
        from public.payments p
@@ -77,6 +80,8 @@ export default async function PaymentsPage() {
     paymentDate: p.payment_date,
     method: p.method,
     reference: p.reference,
+    accountName: p.account_name,
+    accountHolder: p.account_holder,
     status: p.status,
     notes: p.notes,
     recordedBy: p.recorded_by_name,

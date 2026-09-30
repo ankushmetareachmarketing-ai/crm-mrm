@@ -124,6 +124,8 @@ export function NewServiceForm({
     amountPaidNow: "",
     paymentMethod: PAYMENT_METHODS[0],
     paymentReference: "",
+    accountName: "",
+    accountHolder: "",
     dueDate: "",
     notes: "",
   })
@@ -205,6 +207,8 @@ export function NewServiceForm({
           amountPaidNow: terms === "Part payment" ? paidNow : undefined,
           paymentMethod: takesPaymentNow ? form.paymentMethod : undefined,
           paymentReference: takesPaymentNow ? form.paymentReference : undefined,
+          accountName: takesPaymentNow ? form.accountName : undefined,
+          accountHolder: takesPaymentNow ? form.accountHolder : undefined,
           dueDate: needsDueDate ? form.dueDate : undefined,
         }),
       })
@@ -493,6 +497,31 @@ export function NewServiceForm({
                     value={form.paymentReference}
                     onChange={(e) => set("paymentReference", e.target.value)}
                     placeholder="e.g. UTR / cheque no."
+                  />
+                </Field>
+              </div>
+            ) : null}
+
+            {takesPaymentNow ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Account name" htmlFor="ns-account-name">
+                  <Input
+                    id="ns-account-name"
+                    className="h-10 text-base"
+                    value={form.accountName}
+                    onChange={(e) => set("accountName", e.target.value)}
+                    placeholder="e.g. Current account"
+                    maxLength={120}
+                  />
+                </Field>
+                <Field label="Account holder" htmlFor="ns-account-holder">
+                  <Input
+                    id="ns-account-holder"
+                    className="h-10 text-base"
+                    value={form.accountHolder}
+                    onChange={(e) => set("accountHolder", e.target.value)}
+                    placeholder="Name on the account"
+                    maxLength={120}
                   />
                 </Field>
               </div>

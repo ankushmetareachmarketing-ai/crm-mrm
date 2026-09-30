@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { AlarmClock, CalendarRange, Clock, Download, LogOut, Settings2, TrendingUp, UserCheck, Users } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
+import { SearchField } from "@/components/search-field"
 import { StatCard } from "@/components/stat-card"
 import { EmployeeAvatar } from "@/components/hr/employee-bits"
 import { Field } from "@/components/hr/form-bits"
@@ -199,6 +200,7 @@ export function AttendanceReportClient({
 }) {
   const router = useRouter()
   const [department, setDepartment] = useState(ALL)
+  const [employeeQuery, setEmployeeQuery] = useState("")
   const people = department === ALL ? employees : employees.filter((e) => e.departmentId === department)
   const byEmployee = useMemo(() => {
     const m = new Map<string, AttendanceRow[]>()
@@ -228,6 +230,10 @@ export function AttendanceReportClient({
     const joined = e.joiningDate > monthStart ? e.joiningDate : monthStart
     return { e, s: summarizeAttendance(byEmployee.get(e.id) ?? [], joined, monthEnd, settings, today) }
   })
+  const visibleReport = report.filter(({ e }) =>
+    [e.name, e.code, e.department, e.designation].filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(employeeQuery.trim().toLowerCase()))
+  )
   const deptReport = departments
     .map((d) => {
       const members = report.filter((r) => r.e.departmentId === d.id)
@@ -273,7 +279,7 @@ export function AttendanceReportClient({
   function exportReport() {
     downloadCsv(
       `attendance-${month}.csv`,
-      report.map(({ e, s }) => ({
+      visibleReport.map(({ e, s }) => ({
         "Employee ID": e.code,
         Name: e.name,
         Department: e.department ?? "",
@@ -407,7 +413,7 @@ export function AttendanceReportClient({
         </TabsContent>
 
         <TabsContent value="employees" className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Select value={month} onValueChange={(v) => v && router.push(`/hr/attendance-report?month=${v}`)}>
               <SelectTrigger className="h-10 w-52 cursor-pointer">
                 <CalendarRange className="size-4 text-muted-foreground" />
@@ -421,6 +427,12 @@ export function AttendanceReportClient({
                 ))}
               </SelectContent>
             </Select>
+            <SearchField
+              className="min-w-56 flex-1"
+              value={employeeQuery}
+              onChange={(e) => setEmployeeQuery(e.target.value)}
+              placeholder="Search employees by name, ID, department…"
+            />
             <Button variant="outline" className="cursor-pointer" onClick={exportReport}>
               <Download /> Export CSV
             </Button>
@@ -443,7 +455,7 @@ export function AttendanceReportClient({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {report.map(({ e, s }) => (
+                  {visibleReport.map(({ e, s }) => (
                     <TableRow key={e.id}>
                       <TableCell>
                         <Link href={`/hr/employees/${e.id}`} className="font-medium hover:underline">
@@ -473,10 +485,10 @@ export function AttendanceReportClient({
                       <TableCell className="text-right text-emerald-700">{formatMinutes(s.overtimeMinutes)}</TableCell>
                     </TableRow>
                   ))}
-                  {report.length === 0 ? (
+                  {visibleReport.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={10} className="py-8 text-center text-sm text-muted-foreground">
-                        No employees.
+                        {employeeQuery ? "No employees match your search." : "No employees."}
                       </TableCell>
                     </TableRow>
                   ) : null}

@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Plus } from "@/components/icons"
+import { SearchField } from "@/components/search-field"
 import type { ClientContact } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -34,9 +35,20 @@ export function ContactsPanel({
   initialContacts: ClientContact[]
 }) {
   const [contacts, setContacts] = useState(initialContacts)
+  const [query, setQuery] = useState("")
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [submitting, setSubmitting] = useState(false)
+
+  const visibleContacts = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase()
+    if (!normalizedQuery) return contacts
+    return contacts.filter((contact) =>
+      [contact.name, contact.designation, contact.phone, contact.email]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(normalizedQuery))
+    )
+  }, [contacts, query])
 
   async function handleSubmit() {
     if (!form.name.trim()) return
@@ -123,7 +135,13 @@ export function ContactsPanel({
           </DialogContent>
         </Dialog>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-col gap-4">
+        <SearchField
+          className="w-full sm:max-w-sm"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search contacts by name, phone, email…"
+        />
         <Table>
           <TableHeader>
             <TableRow>
@@ -134,7 +152,7 @@ export function ContactsPanel({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {contacts.map((c) => (
+            {visibleContacts.map((c) => (
               <TableRow key={c.id}>
                 <TableCell className="font-medium">{c.name}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{c.designation ?? "—"}</TableCell>
@@ -142,10 +160,10 @@ export function ContactsPanel({
                 <TableCell className="text-sm text-muted-foreground">{c.email ?? "—"}</TableCell>
               </TableRow>
             ))}
-            {contacts.length === 0 ? (
+            {visibleContacts.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
-                  No contacts saved for this client yet.
+                  {query ? "No contacts match your search." : "No contacts saved for this client yet."}
                 </TableCell>
               </TableRow>
             ) : null}

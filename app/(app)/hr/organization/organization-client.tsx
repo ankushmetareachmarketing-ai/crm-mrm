@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Building2, ChevronDown, ChevronRight, Hierarchy, Pencil, Plus, Trash2, Users } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
+import { SearchField } from "@/components/search-field"
 import { StatCard } from "@/components/stat-card"
 import { EmployeeAvatar, EmployeeStatusBadge } from "@/components/hr/employee-bits"
 import { Field, OptionSelect } from "@/components/hr/form-bits"
@@ -37,18 +38,37 @@ interface Editing {
 
 const WORKING = ["Onboarding", "Probation", "Active", "Notice Period"]
 
+function matchesEmployee(person: EmployeeSummary, query: string) {
+  const normalizedQuery = query.trim().toLowerCase()
+  return !normalizedQuery ||
+    [person.name, person.code, person.department, person.designation, person.manager]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(normalizedQuery))
+}
+
+function treeHasMatch(
+  person: EmployeeSummary,
+  reportsOf: Map<string | null, EmployeeSummary[]>,
+  query: string
+): boolean {
+  return matchesEmployee(person, query) || (reportsOf.get(person.id) ?? []).some((child) => treeHasMatch(child, reportsOf, query))
+}
+
 /** Everyone who reports (directly or not) to the given person, as a tree. */
 function OrgNode({
   person,
   reportsOf,
   depth,
+  query,
 }: {
   person: EmployeeSummary
   reportsOf: Map<string | null, EmployeeSummary[]>
   depth: number
+  query: string
 }) {
-  const children = reportsOf.get(person.id) ?? []
+  const children = (reportsOf.get(person.id) ?? []).filter((child) => treeHasMatch(child, reportsOf, query))
   const [open, setOpen] = useState(depth < 2)
+  const expanded = query.trim() ? true : open
   return (
     <li className="relative">
       <div className="flex items-center gap-2 py-1">
@@ -56,10 +76,11 @@ function OrgNode({
           <button
             type="button"
             onClick={() => setOpen(!open)}
+            disabled={Boolean(query.trim())}
             className="flex size-6 cursor-pointer items-center justify-center rounded-md hover:bg-accent"
-            aria-label={open ? "Collapse" : "Expand"}
+            aria-label={expanded ? "Collapse" : "Expand"}
           >
-            {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+            {expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
           </button>
         ) : (
           <span className="size-6" />
@@ -78,10 +99,10 @@ function OrgNode({
           ) : null}
         </Link>
       </div>
-      {open && children.length > 0 ? (
+      {expanded && children.length > 0 ? (
         <ul className="ml-3 border-l-2 border-border pl-5">
           {children.map((c) => (
-            <OrgNode key={c.id} person={c} reportsOf={reportsOf} depth={depth + 1} />
+            <OrgNode key={c.id} person={c} reportsOf={reportsOf} depth={depth + 1} query={query} />
           ))}
         </ul>
       ) : null}
@@ -91,6 +112,7 @@ function OrgNode({
 
 export function OrganizationClient({ org, employees }: { org: OrgOptions; employees: EmployeeSummary[] }) {
   const router = useRouter()
+  const [query, setQuery] = useState("")
   const [editing, setEditing] = useState<Editing | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -169,7 +191,13 @@ export function OrganizationClient({ org, employees }: { org: OrgOptions; employ
     </div>
   )
 
-  const unassigned = working.filter((e) => !e.departmentId)
+  const normalizedQuery = query.trim().toLowerCase()
+  const visibleDepartments = org.departments.filter((department) =>
+    !normalizedQuery || department.name.toLowerCase().includes(normalizedQuery) ||
+    working.some((person) => person.departmentId === department.id && matchesEmployee(person, query))
+  )
+  const unassigned = working.filter((employee) => !employee.departmentId && matchesEmployee(employee, query))
+  const visibleRoots = (reportsOf.get(null) ?? []).filter((person) => treeHasMatch(person, reportsOf, query))
 
   return (
     <div className="flex flex-col gap-6">
@@ -191,14 +219,20 @@ export function OrganizationClient({ org, employees }: { org: OrgOptions; employ
         </TabsList>
 
         <TabsContent value="departments" className="flex flex-col gap-4">
+          <SearchField
+            className="w-full sm:max-w-sm"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search employees or departments…"
+          />
           <div className="flex justify-end">
             <Button className="cursor-pointer" onClick={() => openEdit("departments")}>
               <Plus /> Add department
             </Button>
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
-            {org.departments.map((d) => {
-              const people = working.filter((e) => e.departmentId === d.id)
+            {visibleDepartments.map((d) => {
+              const people = working.filter((e) => e.departmentId === d.id && matchesEmployee(e, query))
               return (
                 <Card key={d.id}>
                   <CardHeader className="flex flex-row items-start justify-between gap-3">
@@ -231,10 +265,10 @@ export function OrganizationClient({ org, employees }: { org: OrgOptions; employ
               )
             })}
           </div>
-          {org.departments.length === 0 ? (
+          {visibleDepartments.length === 0 ? (
             <Card>
               <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                No departments yet. Add one — e.g. Sales, HR, Operations, Support.
+                {normalizedQuery ? "No departments or employees match your search." : "No departments yet. Add one — e.g. Sales, HR, Operations, Support."}
               </CardContent>
             </Card>
           ) : null}
@@ -257,8 +291,24 @@ export function OrganizationClient({ org, employees }: { org: OrgOptions; employ
 
         {(["designations", "teams"] as const).map((kind) => {
           const items = kind === "designations" ? org.designations : org.teams
+          const visibleItems = items.filter((item) => {
+            if (!normalizedQuery) return true
+            const peopleMatch = working.some((person) =>
+              (kind === "designations" ? person.designationId : person.teamId) === item.id && matchesEmployee(person, query)
+            )
+            const lead = kind === "teams" ? (item as OrgOptions["teams"][number]).leadEmployeeId : null
+            return item.name.toLowerCase().includes(normalizedQuery) ||
+              deptName(item.departmentId).toLowerCase().includes(normalizedQuery) ||
+              (lead ? nameOf(lead).toLowerCase().includes(normalizedQuery) : false) || peopleMatch
+          })
           return (
             <TabsContent key={kind} value={kind} className="flex flex-col gap-4">
+                <SearchField
+                  className="w-full sm:max-w-sm"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={`Search ${kind} and employees…`}
+                />
               <div className="flex justify-end">
                 <Button className="cursor-pointer" onClick={() => openEdit(kind)}>
                   <Plus /> Add {LABEL[kind].toLowerCase()}
@@ -266,7 +316,7 @@ export function OrganizationClient({ org, employees }: { org: OrgOptions; employ
               </div>
               <Card>
                 <CardContent className="flex flex-col gap-1.5">
-                  {items.map((item) => {
+                  {visibleItems.map((item) => {
                     const count = working.filter((e) => (kind === "designations" ? e.designationId : e.teamId) === item.id).length
                     const lead = kind === "teams" ? (item as OrgOptions["teams"][number]).leadEmployeeId : null
                     return (
@@ -282,8 +332,10 @@ export function OrganizationClient({ org, employees }: { org: OrgOptions; employ
                       </div>
                     )
                   })}
-                  {items.length === 0 ? (
-                    <p className="py-8 text-center text-sm text-muted-foreground">No {kind} yet.</p>
+                  {visibleItems.length === 0 ? (
+                    <p className="py-8 text-center text-sm text-muted-foreground">
+                      {normalizedQuery ? `No ${kind} match your search.` : `No ${kind} yet.`}
+                    </p>
                   ) : null}
                 </CardContent>
               </Card>
@@ -297,13 +349,23 @@ export function OrganizationClient({ org, employees }: { org: OrgOptions; employ
               <CardTitle>Org chart</CardTitle>
               <CardDescription>Built from each employee&apos;s reporting manager. Click a name to open their profile.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex flex-col gap-4">
+              <SearchField
+                className="w-full sm:max-w-sm"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search org chart by employee, role, department…"
+              />
               <ul className="flex flex-col gap-1">
-                {(reportsOf.get(null) ?? []).map((p) => (
-                  <OrgNode key={p.id} person={p} reportsOf={reportsOf} depth={0} />
+                {visibleRoots.map((p) => (
+                  <OrgNode key={p.id} person={p} reportsOf={reportsOf} depth={0} query={query} />
                 ))}
               </ul>
-              {working.length === 0 ? <p className="py-8 text-center text-sm text-muted-foreground">No employees yet.</p> : null}
+              {visibleRoots.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  {normalizedQuery ? "No employees match your search." : "No employees yet."}
+                </p>
+              ) : null}
             </CardContent>
           </Card>
         </TabsContent>

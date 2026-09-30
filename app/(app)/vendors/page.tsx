@@ -1,7 +1,11 @@
 "use client"
 
+"use client"
+
+import { useMemo, useState } from "react"
 import { Lock } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
+import { SearchField } from "@/components/search-field"
 import { StatusBadge } from "@/components/status-badge"
 import { formatCurrency, formatDate } from "@/lib/format"
 import { vendors, vendorRates } from "@/lib/mock-data"
@@ -20,6 +24,23 @@ import { Badge } from "@/components/ui/badge"
 export default function VendorsPage() {
   const { role } = useRole()
   const canSeeRates = role === "Owner"
+  const [query, setQuery] = useState("")
+  const normalizedQuery = query.trim().toLowerCase()
+  const visibleVendors = useMemo(
+    () => vendors.filter((vendor) =>
+      [vendor.name, ...vendor.services, ...vendor.panels, vendor.activeStatus]
+        .some((value) => value.toLowerCase().includes(normalizedQuery))
+    ),
+    [normalizedQuery]
+  )
+  const visibleRates = useMemo(
+    () => vendorRates.filter((rate) => {
+      const vendorName = vendors.find((vendor) => vendor.id === rate.vendorId)?.name ?? ""
+      return [vendorName, rate.service, rate.panel, rate.component, rate.status]
+        .some((value) => value.toLowerCase().includes(normalizedQuery))
+    }),
+    [normalizedQuery]
+  )
 
   return (
     <div className="flex flex-col gap-6">
@@ -33,7 +54,13 @@ export default function VendorsPage() {
           <CardTitle>Vendors</CardTitle>
           <CardDescription>Service and panel mappings, active status and balances.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
+          <SearchField
+            className="w-full sm:max-w-sm"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search vendors, services or panels…"
+          />
           <Table>
             <TableHeader>
               <TableRow>
@@ -46,7 +73,7 @@ export default function VendorsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {vendors.map((v) => (
+              {visibleVendors.map((v) => (
                 <TableRow key={v.id}>
                   <TableCell className="font-medium">{v.name}</TableCell>
                   <TableCell>
@@ -85,8 +112,15 @@ export default function VendorsPage() {
             Rate versions by vendor, service and panel. A blank rate shows Incomplete, never zero.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
           {canSeeRates ? (
+            <>
+            <SearchField
+              className="w-full sm:max-w-sm"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search rates by vendor, service, panel…"
+            />
             <Table>
               <TableHeader>
                 <TableRow>
@@ -100,7 +134,7 @@ export default function VendorsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {vendorRates.map((r) => {
+                {visibleRates.map((r) => {
                   const vendor = vendors.find((v) => v.id === r.vendorId)
                   return (
                     <TableRow key={r.id}>
@@ -122,6 +156,7 @@ export default function VendorsPage() {
                 })}
               </TableBody>
             </Table>
+            </>
           ) : (
             <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-10 text-center">
               <Lock className="size-8 text-muted-foreground" />

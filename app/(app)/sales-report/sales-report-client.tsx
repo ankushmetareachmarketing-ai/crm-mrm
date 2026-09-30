@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import { Download, IndianRupee, Receipt, Users2, TrendingUp } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
+import { SearchField } from "@/components/search-field"
 import { StatCard } from "@/components/stat-card"
 import { StatusBadge } from "@/components/status-badge"
 import { formatCurrency, formatDate } from "@/lib/format"
@@ -49,6 +50,7 @@ function isSale(p: Payment) {
 
 export function SalesReportClient({ payments, canSeeAll }: { payments: Payment[]; canSeeAll: boolean }) {
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthKey())
+  const [transactionQuery, setTransactionQuery] = useState("")
 
   const monthOptions = useMemo(() => {
     const set = new Set(payments.map((p) => monthKey(p.paymentDate)))
@@ -56,10 +58,18 @@ export function SalesReportClient({ payments, canSeeAll }: { payments: Payment[]
     return Array.from(set).sort((a, b) => b.localeCompare(a))
   }, [payments])
 
-  const filtered = useMemo(
-    () => (selectedMonth === ALL_MONTHS ? payments : payments.filter((p) => monthKey(p.paymentDate) === selectedMonth)),
-    [payments, selectedMonth]
-  )
+  const filtered = useMemo(() => {
+    const query = transactionQuery.trim().toLowerCase()
+    return payments.filter((payment) => {
+      const matchesMonth = selectedMonth === ALL_MONTHS || monthKey(payment.paymentDate) === selectedMonth
+      const matchesQuery =
+        !query ||
+        [payment.clientCompany, payment.clientId, payment.method, payment.reference, payment.accountName, payment.accountHolder, payment.status, payment.approvalStatus]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(query))
+      return matchesMonth && matchesQuery
+    })
+  }, [payments, selectedMonth, transactionQuery])
 
   const sales = useMemo(() => filtered.filter(isSale), [filtered])
   const totalCollected = sales.reduce((sum, p) => sum + p.amount, 0)
@@ -99,6 +109,8 @@ export function SalesReportClient({ payments, canSeeAll }: { payments: Payment[]
         Date: p.paymentDate,
         Method: p.method ?? "",
         Reference: p.reference ?? "",
+        "Account name": p.accountName ?? "",
+        "Account holder": p.accountHolder ?? "",
         Amount: p.amount,
         Status: p.status,
         Approval: p.approvalStatus,
@@ -158,7 +170,13 @@ export function SalesReportClient({ payments, canSeeAll }: { payments: Payment[]
             <CardTitle>Monthly totals</CardTitle>
             <CardDescription>Every month you have a record for.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col gap-4">
+            <SearchField
+              className="w-full sm:max-w-sm"
+              value={transactionQuery}
+              onChange={(e) => setTransactionQuery(e.target.value)}
+              placeholder="Search transactions by client, method, reference…"
+            />
             <Table>
               <TableHeader>
                 <TableRow>
@@ -206,6 +224,7 @@ export function SalesReportClient({ payments, canSeeAll }: { payments: Payment[]
                   <TableHead>Client</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Method</TableHead>
+                  <TableHead>Account</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Approval</TableHead>
@@ -222,6 +241,11 @@ export function SalesReportClient({ payments, canSeeAll }: { payments: Payment[]
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{formatDate(p.paymentDate)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{p.method ?? "—"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {p.accountName || p.accountHolder
+                        ? [p.accountName, p.accountHolder].filter(Boolean).join(" · ")
+                        : "—"}
+                    </TableCell>
                     <TableCell className="text-right font-medium">{formatCurrency(p.amount)}</TableCell>
                     <TableCell>
                       <StatusBadge status={p.status} />
@@ -236,7 +260,7 @@ export function SalesReportClient({ payments, canSeeAll }: { payments: Payment[]
                 ))}
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={canSeeAll ? 7 : 6} className="py-8 text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={canSeeAll ? 8 : 7} className="py-8 text-center text-sm text-muted-foreground">
                       No payments recorded for this period.
                     </TableCell>
                   </TableRow>

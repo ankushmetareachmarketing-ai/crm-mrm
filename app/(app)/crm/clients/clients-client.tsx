@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { ChevronRight, Pencil, Plus } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
+import { SearchField } from "@/components/search-field"
 import { StatusBadge } from "@/components/status-badge"
 import { ImageUpload } from "@/components/image-upload"
 import { formatCurrency, formatDate } from "@/lib/format"
@@ -83,11 +84,22 @@ export function ClientsClient({
   isOwner: boolean
 }) {
   const [clients, setClients] = useState<ClientWithFinance[]>(initialClients)
+  const [clientQuery, setClientQuery] = useState("")
   const [open, setOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  const visibleClients = useMemo(() => {
+    const query = clientQuery.trim().toLowerCase()
+    if (!query) return clients
+    return clients.filter((client) =>
+      [client.company, client.id, client.industry, client.owner, client.status, client.city, client.state, client.gstin]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query))
+    )
+  }, [clients, clientQuery])
 
   function openCreate() {
     setEditingId(null)
@@ -424,7 +436,13 @@ export function ClientsClient({
       />
 
       <Card>
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
+          <SearchField
+            className="w-full sm:max-w-sm"
+            value={clientQuery}
+            onChange={(e) => setClientQuery(e.target.value)}
+            placeholder="Search clients by company, owner, ID…"
+          />
           <Table>
             <TableHeader>
               <TableRow>
@@ -441,7 +459,7 @@ export function ClientsClient({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {clients.map((client) => (
+              {visibleClients.map((client) => (
                 <TableRow key={client.id} className="group">
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -507,10 +525,10 @@ export function ClientsClient({
                   </TableCell>
                 </TableRow>
               ))}
-              {clients.length === 0 ? (
+              {visibleClients.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={10} className="py-8 text-center text-sm text-muted-foreground">
-                    No clients yet.
+                    {clientQuery ? "No clients match your search." : "No clients yet."}
                   </TableCell>
                 </TableRow>
               ) : null}

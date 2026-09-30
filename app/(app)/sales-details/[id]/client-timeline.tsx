@@ -1,9 +1,11 @@
 "use client"
 
+import { useMemo, useState } from "react"
 import { CheckCircle2, History, IndianRupee, Layers, XCircle } from "@/components/icons"
 import type { IconComponent } from "@/components/icons"
 import { ApprovalBadge } from "@/components/money-badges"
 import { ApprovalActions } from "@/components/approval-actions"
+import { SearchField } from "@/components/search-field"
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format"
 import {
   isTestingService,
@@ -101,14 +103,32 @@ function describe(ev: TimelineEvent, isOwner: boolean): { icon: IconComponent; t
 }
 
 export function ClientTimeline({ events, isOwner }: { events: TimelineEvent[]; isOwner: boolean }) {
-  const newestFirst = [...events].reverse()
-
-  if (newestFirst.length === 0) {
-    return <p className="py-10 text-center text-sm text-muted-foreground">No activity yet.</p>
-  }
+  const [query, setQuery] = useState("")
+  const newestFirst = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase()
+    return [...events].reverse().filter((event) => {
+      if (!normalizedQuery) return true
+      const description = describe(event, isOwner)
+      return [description.title, description.detail, event.actor, event.entry.label, event.entry.reference]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(normalizedQuery))
+    })
+  }, [events, isOwner, query])
 
   return (
-    <ol className="relative flex flex-col">
+    <div className="flex flex-col gap-4">
+      <SearchField
+        className="w-full sm:max-w-sm"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search activity by service, payment, person…"
+      />
+      {newestFirst.length === 0 ? (
+        <p className="py-10 text-center text-sm text-muted-foreground">
+          {query ? "No activity matches your search." : "No activity yet."}
+        </p>
+      ) : null}
+      <ol className="relative flex flex-col">
       {newestFirst.map((ev, i) => {
         const d = describe(ev, isOwner)
         const Icon = d.icon
@@ -159,6 +179,7 @@ export function ClientTimeline({ events, isOwner }: { events: TimelineEvent[]; i
           </li>
         )
       })}
-    </ol>
+      </ol>
+    </div>
   )
 }

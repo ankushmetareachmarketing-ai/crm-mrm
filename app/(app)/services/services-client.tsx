@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import { CalendarRange, Clock, Hourglass, Layers, Plus, ReceiptText, Wallet } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
+import { SearchField } from "@/components/search-field"
 import { StatCard } from "@/components/stat-card"
 import { ApprovalBadge, TermsBadge, TestingBadge } from "@/components/money-badges"
 import { ApprovalActions } from "@/components/approval-actions"
@@ -64,6 +65,7 @@ export interface BookedService {
 
 export function ServicesClient({ services, isOwner }: { services: BookedService[]; isOwner: boolean }) {
   const [month, setMonth] = useState<string>(currentMonthKey())
+  const [serviceQuery, setServiceQuery] = useState("")
 
   const monthOptions = useMemo(() => {
     const set = new Set(services.map((s) => monthKey(s.date)))
@@ -71,10 +73,18 @@ export function ServicesClient({ services, isOwner }: { services: BookedService[
     return Array.from(set).sort((a, b) => b.localeCompare(a))
   }, [services])
 
-  const visible = useMemo(
-    () => (month === ALL_MONTHS ? services : services.filter((s) => monthKey(s.date) === month)),
-    [services, month]
-  )
+  const visible = useMemo(() => {
+    const query = serviceQuery.trim().toLowerCase()
+    return services.filter((service) => {
+      const matchesMonth = month === ALL_MONTHS || monthKey(service.date) === month
+      const matchesQuery =
+        !query ||
+        [service.company, service.clientId, service.service, service.salesPerson, service.recordedBy, service.approvalStatus]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(query))
+      return matchesMonth && matchesQuery
+    })
+  }, [services, month, serviceQuery])
 
   // Owner sees GST-inclusive money; Sales sees everything without GST.
   const amountOf = (s: BookedService) => (isOwner ? s.total : s.base)
@@ -144,7 +154,13 @@ export function ServicesClient({ services, isOwner }: { services: BookedService[
             Click a client name to see every payment made for their services and what is still to pay.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
+          <SearchField
+            className="w-full sm:max-w-sm"
+            value={serviceQuery}
+            onChange={(e) => setServiceQuery(e.target.value)}
+            placeholder="Search services by client, service, salesperson…"
+          />
           <Table>
             <TableHeader>
               <TableRow>

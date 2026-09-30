@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react"
 import { CalendarClock, ChevronDown, Download, Phone, PhoneCall, Plus, ThumbsDown, ThumbsUp, Upload } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
+import { SearchField } from "@/components/search-field"
 import { StatCard } from "@/components/stat-card"
 import { StatusBadge } from "@/components/status-badge"
 import { formatDate, formatRelativeTime } from "@/lib/format"
@@ -117,6 +118,8 @@ export function CallsClient({
   const [bulkError, setBulkError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedDate, setSelectedDate] = useState<string>(todayKey())
+  const [entryQuery, setEntryQuery] = useState("")
+  const [historyQuery, setHistoryQuery] = useState("")
 
   const [singleName, setSingleName] = useState("")
   const [singlePhone, setSinglePhone] = useState("")
@@ -157,6 +160,24 @@ export function CallsClient({
     () => (selectedDate === ALL_DATES ? callHistory : callHistory.filter((h) => h.calledAt.slice(0, 10) === selectedDate)),
     [callHistory, selectedDate]
   )
+  const visibleEntries = useMemo(() => {
+    const query = entryQuery.trim().toLowerCase()
+    if (!query) return entries
+    return entries.filter((entry) =>
+      [entry.name, entry.phone, entry.status, entry.notes]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query))
+    )
+  }, [entries, entryQuery])
+  const visibleHistory = useMemo(() => {
+    const query = historyQuery.trim().toLowerCase()
+    if (!query) return filteredHistory
+    return filteredHistory.filter((entry) =>
+      [entry.phone, entry.outcome, entry.notes, entry.employeeName]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query))
+    )
+  }, [filteredHistory, historyQuery])
   const callsForSelected = filteredHistory.length
   const interestedForSelected = filteredHistory.filter((h) => h.outcome === "Interested").length
   const notInterestedForSelected = filteredHistory.filter((h) => h.outcome === "Not Interested").length
@@ -318,7 +339,7 @@ export function CallsClient({
   function exportHistory() {
     downloadCsv(
       `call-history-${selectedDate === ALL_DATES ? "all" : selectedDate}.csv`,
-      filteredHistory.map((h) => ({
+      visibleHistory.map((h) => ({
         "Date/time": h.calledAt,
         Phone: h.phone,
         Outcome: h.outcome,
@@ -482,7 +503,13 @@ export function CallsClient({
             Log the outcome right after each call. Sorted by next follow-up due.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
+          <SearchField
+            className="w-full sm:max-w-sm"
+            value={entryQuery}
+            onChange={(e) => setEntryQuery(e.target.value)}
+            placeholder="Search my list by name, phone, status…"
+          />
           <Table>
             <TableHeader>
               <TableRow>
@@ -497,7 +524,7 @@ export function CallsClient({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {entries.map((e) => {
+              {visibleEntries.map((e) => {
                 const tone = followUpTone(e.nextFollowUpDate)
                 return (
                   <TableRow key={e.id}>
@@ -542,10 +569,10 @@ export function CallsClient({
                   </TableRow>
                 )
               })}
-              {entries.length === 0 ? (
+              {visibleEntries.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
-                    No numbers yet — add some to start calling.
+                    {entryQuery ? "No numbers match your search." : "No numbers yet — add some to start calling."}
                   </TableCell>
                 </TableRow>
               ) : null}
@@ -585,7 +612,13 @@ export function CallsClient({
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
+          <SearchField
+            className="w-full sm:max-w-sm"
+            value={historyQuery}
+            onChange={(e) => setHistoryQuery(e.target.value)}
+            placeholder="Search call history by phone, outcome, notes…"
+          />
           <Table>
             <TableHeader>
               <TableRow>
@@ -596,7 +629,7 @@ export function CallsClient({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredHistory.map((h) => (
+              {visibleHistory.map((h) => (
                 <TableRow key={h.id}>
                   <TableCell className="text-sm text-muted-foreground">{formatDate(h.calledAt)}</TableCell>
                   <TableCell className="font-mono text-sm">{h.phone}</TableCell>
@@ -606,10 +639,10 @@ export function CallsClient({
                   <TableCell className="max-w-72 text-sm text-muted-foreground">{h.notes ?? "—"}</TableCell>
                 </TableRow>
               ))}
-              {filteredHistory.length === 0 ? (
+              {visibleHistory.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
-                    No calls logged for this date.
+                    {historyQuery ? "No calls match your search." : "No calls logged for this date."}
                   </TableCell>
                 </TableRow>
               ) : null}

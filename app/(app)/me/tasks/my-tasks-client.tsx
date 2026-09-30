@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { CheckCircle2, ListChecks, Plus } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
+import { SearchField } from "@/components/search-field"
 import { Field, OptionSelect, TextSelect } from "@/components/hr/form-bits"
 import type { TaskRow } from "@/lib/data/me"
 import { formatDate } from "@/lib/format"
@@ -87,11 +88,31 @@ function TaskItem({ t, showAssignee }: { t: TaskRow; showAssignee?: boolean }) {
 
 export function MyTasksClient({ mine, given, team }: { mine: TaskRow[]; given: TaskRow[]; team: { id: string; name: string }[] }) {
   const router = useRouter()
+  const [mineQuery, setMineQuery] = useState("")
+  const [givenQuery, setGivenQuery] = useState("")
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ title: "", description: "", assigneeId: "", priority: "Medium", dueDate: "" })
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const openCount = mine.filter((t) => t.status === "Pending" || t.status === "In Progress").length
+  const visibleMine = useMemo(() => {
+    const query = mineQuery.trim().toLowerCase()
+    if (!query) return mine
+    return mine.filter((task) =>
+      [task.title, task.description, task.priority, task.status, task.createdBy]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query))
+    )
+  }, [mine, mineQuery])
+  const visibleGiven = useMemo(() => {
+    const query = givenQuery.trim().toLowerCase()
+    if (!query) return given
+    return given.filter((task) =>
+      [task.title, task.description, task.priority, task.status, task.assignee]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query))
+    )
+  }, [given, givenQuery])
 
   async function create() {
     setSaving(true)
@@ -169,13 +190,19 @@ export function MyTasksClient({ mine, given, team }: { mine: TaskRow[]; given: T
           <CardTitle>Given to me</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
-          {mine.map((t) => (
+          <SearchField
+            className="mb-2 w-full sm:max-w-sm"
+            value={mineQuery}
+            onChange={(e) => setMineQuery(e.target.value)}
+            placeholder="Search tasks by title, details, status…"
+          />
+          {visibleMine.map((t) => (
             <TaskItem key={t.id} t={t} />
           ))}
-          {mine.length === 0 ? (
+          {visibleMine.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-8 text-center text-sm text-muted-foreground">
               <ListChecks className="size-7" />
-              No tasks for you.
+              {mineQuery ? "No tasks match your search." : "No tasks for you."}
             </div>
           ) : null}
         </CardContent>
@@ -188,9 +215,16 @@ export function MyTasksClient({ mine, given, team }: { mine: TaskRow[]; given: T
             <CardDescription>You get a notification when they finish.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
-            {given.map((t) => (
+            <SearchField
+              className="mb-2 w-full sm:max-w-sm"
+              value={givenQuery}
+              onChange={(e) => setGivenQuery(e.target.value)}
+              placeholder="Search assigned tasks…"
+            />
+            {visibleGiven.map((t) => (
               <TaskItem key={t.id} t={t} showAssignee />
             ))}
+            {visibleGiven.length === 0 ? <p className="py-6 text-center text-sm text-muted-foreground">No tasks match your search.</p> : null}
           </CardContent>
         </Card>
       ) : null}

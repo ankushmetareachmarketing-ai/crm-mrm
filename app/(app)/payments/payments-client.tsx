@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import { CheckCircle2, Download, IndianRupee, Plus, XCircle } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
+import { SearchField } from "@/components/search-field"
 import { StatCard } from "@/components/stat-card"
 import { StatusBadge } from "@/components/status-badge"
 import { formatCurrency, formatDate } from "@/lib/format"
@@ -52,7 +53,9 @@ export function PaymentsClient({
   canApprove: boolean
 }) {
   const [payments, setPayments] = useState(initialPayments)
+  const [paymentQuery, setPaymentQuery] = useState("")
   const [reminders, setReminders] = useState(initialReminders)
+  const [reminderQuery, setReminderQuery] = useState("")
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(emptyReminderForm)
   const [error, setError] = useState<string | null>(null)
@@ -66,6 +69,26 @@ export function PaymentsClient({
         .reduce((sum, p) => sum + p.amount, 0),
     [payments]
   )
+
+  const visiblePayments = useMemo(() => {
+    const query = paymentQuery.trim().toLowerCase()
+    if (!query) return payments
+    return payments.filter((payment) =>
+      [payment.clientCompany, payment.clientId, payment.id, payment.method, payment.reference, payment.accountName, payment.accountHolder, payment.status, payment.approvalStatus]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query))
+    )
+  }, [payments, paymentQuery])
+
+  const visibleReminders = useMemo(() => {
+    const query = reminderQuery.trim().toLowerCase()
+    if (!query) return reminders
+    return reminders.filter((reminder) =>
+      [reminder.clientCompany, reminder.clientId, reminder.status, reminder.notes]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query))
+    )
+  }, [reminders, reminderQuery])
 
   async function handleCreateReminder() {
     if (!form.clientId || !form.dueDate) return
@@ -135,11 +158,13 @@ export function PaymentsClient({
   function exportPayments() {
     downloadCsv(
       `payments-${new Date().toISOString().slice(0, 10)}.csv`,
-      payments.map((p) => ({
+      visiblePayments.map((p) => ({
         Client: p.clientCompany,
         Date: p.paymentDate,
         Method: p.method ?? "",
         Reference: p.reference ?? "",
+        "Account name": p.accountName ?? "",
+        "Account holder": p.accountHolder ?? "",
         Amount: p.amount,
         Status: p.status,
         Approval: p.approvalStatus,
@@ -188,13 +213,20 @@ export function PaymentsClient({
               <Download /> Export CSV
             </Button>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col gap-4">
+            <SearchField
+              className="w-full sm:max-w-sm"
+              value={paymentQuery}
+              onChange={(e) => setPaymentQuery(e.target.value)}
+              placeholder="Search payments by client, method, reference…"
+            />
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Client</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Method</TableHead>
+                  <TableHead>Account</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Approval</TableHead>
@@ -202,7 +234,7 @@ export function PaymentsClient({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {payments.map((p) => (
+                {visiblePayments.map((p) => (
                   <TableRow key={p.id}>
                     <TableCell>
                       <Link href={`/crm/clients/${p.clientId}`} className="font-medium hover:underline">
@@ -211,6 +243,11 @@ export function PaymentsClient({
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{formatDate(p.paymentDate)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{p.method ?? "—"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {p.accountName || p.accountHolder
+                        ? [p.accountName, p.accountHolder].filter(Boolean).join(" · ")
+                        : "—"}
+                    </TableCell>
                     <TableCell className="text-right font-medium">{formatCurrency(p.amount)}</TableCell>
                     <TableCell>
                       <StatusBadge status={p.status} />
@@ -248,10 +285,10 @@ export function PaymentsClient({
                     ) : null}
                   </TableRow>
                 ))}
-                {payments.length === 0 ? (
+                {visiblePayments.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={canApprove ? 7 : 6} className="py-8 text-center text-sm text-muted-foreground">
-                      No payments recorded yet.
+                    <TableCell colSpan={canApprove ? 8 : 7} className="py-8 text-center text-sm text-muted-foreground">
+                      {paymentQuery ? "No payments match your search." : "No payments recorded yet."}
                     </TableCell>
                   </TableRow>
                 ) : null}
@@ -337,7 +374,13 @@ export function PaymentsClient({
             </Dialog>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-            {reminders.map((r) => (
+            <SearchField
+              className="w-full"
+              value={reminderQuery}
+              onChange={(e) => setReminderQuery(e.target.value)}
+              placeholder="Search reminders by client or notes…"
+            />
+            {visibleReminders.map((r) => (
               <div key={r.id} className="rounded-lg border p-3">
                 <div className="flex items-start justify-between">
                   <div>
@@ -359,8 +402,10 @@ export function PaymentsClient({
                 </div>
               </div>
             ))}
-            {reminders.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">No reminders pending.</p>
+            {visibleReminders.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                {reminderQuery ? "No reminders match your search." : "No reminders pending."}
+              </p>
             ) : null}
           </CardContent>
         </Card>

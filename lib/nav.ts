@@ -47,15 +47,15 @@ export const navGroups: NavGroup[] = [
       { title: "Dashboard", url: "/", icon: LayoutDashboard, roles: "all" },
     ],
   },
-  // {
-  //   label: "My space",
-  //   items: [
-  //     { title: "My profile", url: "/me", icon: UserCheck, roles: "all" },
-  //     { title: "My attendance", url: "/me/attendance", icon: Clock, roles: "all" },
-  //     { title: "My leave", url: "/me/leave", icon: CalendarRange, roles: "all" },
-  //     { title: "My tasks", url: "/me/tasks", icon: ListChecks, roles: "all" },
-  //   ],
-  // },
+  {
+    label: "My space",
+    items: [
+      { title: "My profile", url: "/me", icon: UserCheck, roles: "all" },
+      { title: "My attendance", url: "/me/attendance", icon: Clock, roles: "all" },
+      { title: "My leave", url: "/me/leave", icon: CalendarRange, roles: "all" },
+      { title: "My tasks", url: "/me/tasks", icon: ListChecks, roles: "all" },
+    ],
+  },
   {
     label: "CRM & Sales",
     items: [

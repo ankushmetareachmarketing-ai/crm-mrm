@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Info, Plus } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
+import { SearchField } from "@/components/search-field"
 import { StatusBadge } from "@/components/status-badge"
 import { useRole } from "@/components/role-context"
 import { ImageUpload } from "@/components/image-upload"
@@ -95,20 +96,47 @@ export function SettingsClient({
   const isOwner = role === "Owner"
 
   const [profiles, setProfiles] = useState<Profile[]>(initialProfiles)
+  const [profileQuery, setProfileQuery] = useState("")
   const [profileOpen, setProfileOpen] = useState(false)
   const [profileForm, setProfileForm] = useState(emptyProfileForm)
   const [profileError, setProfileError] = useState<string | null>(null)
   const [profileSubmitting, setProfileSubmitting] = useState(false)
 
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees)
+  const [employeeQuery, setEmployeeQuery] = useState("")
   const [employeeOpen, setEmployeeOpen] = useState(false)
   const [employeeForm, setEmployeeForm] = useState(emptyEmployeeForm)
   const [employeeError, setEmployeeError] = useState<string | null>(null)
   const [employeeSubmitting, setEmployeeSubmitting] = useState(false)
 
   const [serviceCatalogue, setServiceCatalogue] = useState<ServiceCatalogueItem[]>(initialServices)
+  const [serviceQuery, setServiceQuery] = useState("")
   const [serviceOpen, setServiceOpen] = useState(false)
   const [serviceForm, setServiceForm] = useState(emptyServiceForm)
+
+  const visibleProfiles = useMemo(() => {
+    const query = profileQuery.trim().toLowerCase()
+    if (!query) return profiles
+    return profiles.filter((profile) =>
+      [profile.name, profile.description, profile.dataScope].some((value) => value.toLowerCase().includes(query))
+    )
+  }, [profiles, profileQuery])
+  const visibleEmployees = useMemo(() => {
+    const query = employeeQuery.trim().toLowerCase()
+    if (!query) return employees
+    return employees.filter((employee) =>
+      [employee.name, employee.contact, employee.loginId, employee.profile, employee.employmentType]
+        .some((value) => value.toLowerCase().includes(query))
+    )
+  }, [employees, employeeQuery])
+  const visibleServices = useMemo(() => {
+    const query = serviceQuery.trim().toLowerCase()
+    if (!query) return serviceCatalogue
+    return serviceCatalogue.filter((service) =>
+      [service.name, service.code, service.billingUnit, service.active ? "active" : "inactive"]
+        .some((value) => value.toLowerCase().includes(query))
+    )
+  }, [serviceCatalogue, serviceQuery])
 
   async function handleCreateProfile() {
     if (!profileForm.name.trim() || !profileForm.description.trim() || !profileForm.dataScope.trim()) {
@@ -326,7 +354,13 @@ export function SettingsClient({
                 </Dialog>
               ) : null}
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex flex-col gap-4">
+              <SearchField
+                className="w-full sm:max-w-sm"
+                value={profileQuery}
+                onChange={(e) => setProfileQuery(e.target.value)}
+                placeholder="Search profiles by name or scope…"
+              />
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -337,7 +371,7 @@ export function SettingsClient({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {profiles.map((p) => (
+                  {visibleProfiles.map((p) => (
                     <TableRow key={p.id}>
                       <TableCell className="font-medium">{p.name}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{p.description}</TableCell>
@@ -535,7 +569,13 @@ export function SettingsClient({
                 </Dialog>
               ) : null}
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex flex-col gap-4">
+              <SearchField
+                className="w-full sm:max-w-sm"
+                value={employeeQuery}
+                onChange={(e) => setEmployeeQuery(e.target.value)}
+                placeholder="Search employees by name, phone, login ID…"
+              />
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -549,7 +589,7 @@ export function SettingsClient({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {employees.map((e) => (
+                  {visibleEmployees.map((e) => (
                     <TableRow key={e.id}>
                       <TableCell className="font-medium">{e.name}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{e.contact}</TableCell>
@@ -562,10 +602,10 @@ export function SettingsClient({
                       </TableCell>
                     </TableRow>
                   ))}
-                  {employees.length === 0 ? (
+                  {visibleEmployees.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
-                        No employees yet.
+                        {employeeQuery ? "No employees match your search." : "No employees yet."}
                       </TableCell>
                     </TableRow>
                   ) : null}
@@ -638,7 +678,13 @@ export function SettingsClient({
                 </Dialog>
               ) : null}
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex flex-col gap-4">
+              <SearchField
+                className="w-full sm:max-w-sm"
+                value={serviceQuery}
+                onChange={(e) => setServiceQuery(e.target.value)}
+                placeholder="Search services by name, code, billing unit…"
+              />
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -649,7 +695,7 @@ export function SettingsClient({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {serviceCatalogue.map((s) => (
+                  {visibleServices.map((s) => (
                     <TableRow key={s.id}>
                       <TableCell className="font-medium">{s.name}</TableCell>
                       <TableCell className="font-mono text-xs text-muted-foreground">{s.code}</TableCell>

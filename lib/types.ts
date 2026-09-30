@@ -96,6 +96,8 @@ export interface Payment {
   paymentDate: string
   method: string | null
   reference: string | null
+  accountName?: string | null
+  accountHolder?: string | null
   status: PaymentStatus
   notes: string | null
   recordedBy: string | null

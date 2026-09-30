@@ -3,28 +3,22 @@ import { notFound } from "next/navigation"
 import { ArrowLeft } from "@/components/icons"
 import { StatusBadge } from "@/components/status-badge"
 import { StatCard } from "@/components/stat-card"
-import { formatCurrency, formatDate, formatRelativeTime } from "@/lib/format"
+import { formatCurrency, formatDate } from "@/lib/format"
 import { pool } from "@/lib/db"
 import { getCurrentEmployee } from "@/lib/auth/current-user"
 import type { Client, ClientContact, ClientNote, ActivityEntry, Payment } from "@/lib/types"
 import { Wallet, ReceiptText, Building2, CalendarClock, CalendarCheck } from "@/components/icons"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { ContactsPanel } from "./contacts-panel"
+import { ClientActivityPanel } from "./activity-panel"
+import { ClientPaymentsPanel } from "./payments-panel"
 import { NotesPanel } from "./notes-panel"
 
 export default async function ClientDetailPage({
@@ -137,6 +131,8 @@ export default async function ClientDetailPage({
       payment_date: string
       method: string | null
       reference: string | null
+      account_name: string | null
+      account_holder: string | null
       status: Payment["status"]
       notes: string | null
       recorded_by_name: string | null
@@ -145,7 +141,7 @@ export default async function ClientDetailPage({
       approved_by_name: string | null
       approved_at: string | null
     }>(
-      `select p.id, p.amount::text, p.payment_date::text, p.method, p.reference, p.status, p.notes,
+      `select p.id, p.amount::text, p.payment_date::text, p.method, p.reference, p.account_name, p.account_holder, p.status, p.notes,
               e.name as recorded_by_name, p.created_at::text,
               p.approval_status, a.name as approved_by_name, p.approved_at::text
        from public.payments p
@@ -180,6 +176,8 @@ export default async function ClientDetailPage({
     paymentDate: p.payment_date,
     method: p.method,
     reference: p.reference,
+    accountName: p.account_name,
+    accountHolder: p.account_holder,
     status: p.status,
     notes: p.notes,
     recordedBy: p.recorded_by_name,
@@ -266,52 +264,7 @@ export default async function ClientDetailPage({
         </TabsList>
 
         <TabsContent value="payments">
-          <Card>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Reference</TableHead>
-                    <TableHead>Method</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Recorded by</TableHead>
-                    <TableHead>Approval</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {payments.map((p) => (
-                    <TableRow key={p.id}>
-                      <TableCell className="text-sm">{formatDate(p.paymentDate)}</TableCell>
-                      <TableCell className="font-mono text-xs">{p.reference ?? "—"}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{p.method ?? "—"}</TableCell>
-                      <TableCell className="text-right text-sm font-medium">
-                        {formatCurrency(p.amount)}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{p.recordedBy ?? "—"}</TableCell>
-                      <TableCell>
-                        <StatusBadge status={p.approvalStatus} />
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={p.status} />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {payments.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
-                        No payments recorded for this client yet.
-                      </TableCell>
-                    </TableRow>
-                  ) : null}
-                </TableBody>
-              </Table>
-              <p className="mt-3 text-xs text-muted-foreground">
-                A pending payment does not change the confirmed due balance until the Owner approves it.
-              </p>
-            </CardContent>
-          </Card>
+          <ClientPaymentsPanel payments={payments} />
         </TabsContent>
 
         <TabsContent value="contacts">
@@ -324,26 +277,7 @@ export default async function ClientDetailPage({
 
         <TabsContent value="activity">
           <Card>
-            <CardContent>
-              <div className="flex flex-col gap-3">
-                {activity.map((a) => (
-                  <div key={a.id} className="flex gap-3 border-b pb-3 last:border-0">
-                    <div className="mt-1 size-2 shrink-0 rounded-full bg-primary" />
-                    <div>
-                      <p className="text-sm font-medium">
-                        {a.action}
-                        {a.actor ? <span className="font-normal text-muted-foreground"> · {a.actor}</span> : null}
-                      </p>
-                      {a.detail ? <p className="text-sm text-muted-foreground">{a.detail}</p> : null}
-                      <p className="text-xs text-muted-foreground">{formatRelativeTime(a.createdAt)}</p>
-                    </div>
-                  </div>
-                ))}
-                {activity.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-muted-foreground">No activity recorded yet.</p>
-                ) : null}
-              </div>
-            </CardContent>
+            <ClientActivityPanel activity={activity} />
           </Card>
         </TabsContent>
       </Tabs>

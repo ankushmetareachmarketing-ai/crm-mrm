@@ -61,6 +61,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     amountPaidNow,
     paymentMethod,
     paymentReference,
+    accountName,
+    accountHolder,
     dueDate,
   } = body ?? {}
   const serviceName = typeof service === "string" ? service.trim() : ""
@@ -172,9 +174,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
       await client.query(
         `insert into public.payments
-           (id, client_id, amount, payment_date, method, reference, status, notes, recorded_by_employee_id,
+           (id, client_id, amount, payment_date, method, reference, account_name, account_holder, status, notes, recorded_by_employee_id,
             approval_status, gst_type, base_amount, charge_id)
-         values ($1, $2, $3, $4, $5, $6, 'Received', $7, $8, 'Pending', $9, $10, $11)`,
+         values ($1, $2, $3, $4, $5, $6, $7, $8, 'Received', $9, $10, 'Pending', $11, $12, $13)`,
         [
           paymentId,
           id,
@@ -182,6 +184,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           resolvedDate,
           paymentMethod || null,
           paymentReference || null,
+          typeof accountName === "string" ? accountName.trim().slice(0, 120) || null : null,
+          typeof accountHolder === "string" ? accountHolder.trim().slice(0, 120) || null : null,
           `Paid while booking ${serviceName}`,
           caller.id,
           resolvedGstType,

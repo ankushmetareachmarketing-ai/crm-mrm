@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
+import { SearchField } from "@/components/search-field"
 import type { ClientNote } from "@/lib/types"
 import { formatRelativeTime } from "@/lib/format"
 import { Button } from "@/components/ui/button"
@@ -15,8 +16,17 @@ export function NotesPanel({
   initialNotes: ClientNote[]
 }) {
   const [notes, setNotes] = useState(initialNotes)
+  const [query, setQuery] = useState("")
   const [body, setBody] = useState("")
   const [submitting, setSubmitting] = useState(false)
+
+  const visibleNotes = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase()
+    if (!normalizedQuery) return notes
+    return notes.filter((note) =>
+      [note.body, note.author].filter(Boolean).some((value) => String(value).toLowerCase().includes(normalizedQuery))
+    )
+  }, [notes, query])
 
   async function handleSubmit() {
     if (!body.trim()) return
@@ -53,8 +63,14 @@ export function NotesPanel({
             {submitting ? "Saving…" : "Add note"}
           </Button>
         </div>
+        <SearchField
+          className="w-full sm:max-w-sm"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search notes by text or author…"
+        />
         <div className="flex flex-col gap-3">
-          {notes.map((n) => (
+          {visibleNotes.map((n) => (
             <div key={n.id} className="rounded-lg border p-3">
               <p className="text-sm">{n.body}</p>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -62,8 +78,10 @@ export function NotesPanel({
               </p>
             </div>
           ))}
-          {notes.length === 0 ? (
-            <p className="py-4 text-center text-sm text-muted-foreground">No notes yet.</p>
+          {visibleNotes.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              {query ? "No notes match your search." : "No notes yet."}
+            </p>
           ) : null}
         </div>
       </CardContent>

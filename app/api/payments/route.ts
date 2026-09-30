@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { clientId, amount, paymentDate, method, reference, status, notes, gstType } = body ?? {}
+  const { clientId, amount, paymentDate, method, reference, accountName, accountHolder, status, notes, gstType } = body ?? {}
 
   if (!clientId || !isPositiveNumber(amount)) {
     return NextResponse.json({ error: "Client and a positive amount are required." }, { status: 400 })
@@ -69,10 +69,10 @@ export async function POST(request: Request) {
 
     await client.query(
       `insert into public.payments
-         (id, client_id, amount, payment_date, method, reference, status, notes, recorded_by_employee_id,
+         (id, client_id, amount, payment_date, method, reference, account_name, account_holder, status, notes, recorded_by_employee_id,
           approval_status, approved_by_employee_id, approved_at, gst_type, base_amount)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, case when $10 = 'Approved' then now() else null end,
-               $12, $13)`,
+             values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
+               case when $12 = 'Approved' then now() else null end, $14, $15)`,
       [
         id,
         clientId,
@@ -80,6 +80,8 @@ export async function POST(request: Request) {
         resolvedDate,
         method || null,
         reference || null,
+        typeof accountName === "string" ? accountName.trim().slice(0, 120) || null : null,
+        typeof accountHolder === "string" ? accountHolder.trim().slice(0, 120) || null : null,
         resolvedStatus,
         notes || null,
         caller.id,

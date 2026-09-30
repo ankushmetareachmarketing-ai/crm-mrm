@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ChevronRight, Clock, IndianRupee, ReceiptText, Wallet } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
+import { SearchField } from "@/components/search-field"
 import { StatCard } from "@/components/stat-card"
 import { formatCurrency } from "@/lib/format"
 import { ApprovalBadge, PaidStateBadge } from "@/components/money-badges"
@@ -80,6 +81,7 @@ function DueAmount({ value }: { value: number }) {
 export function SalesDetailsClient({ summaries, isOwner }: { summaries: ClientLedgerSummary[]; isOwner: boolean }) {
   const router = useRouter()
   const [salesPerson, setSalesPerson] = useState<string>(ALL)
+  const [clientQuery, setClientQuery] = useState("")
 
   const team = useMemo(() => {
     const byPerson = new Map<string, { key: string; name: string; clients: number; totals: Totals[] }>()
@@ -95,13 +97,19 @@ export function SalesDetailsClient({ summaries, isOwner }: { summaries: ClientLe
       .sort((a, b) => b.due - a.due)
   }, [summaries, isOwner])
 
-  const visible = useMemo(
-    () =>
-      salesPerson === ALL
-        ? summaries
-        : summaries.filter((s) => (s.ownerEmployeeId ?? UNASSIGNED) === salesPerson),
-    [summaries, salesPerson]
-  )
+  const visible = useMemo(() => {
+    const query = clientQuery.trim().toLowerCase()
+    return summaries.filter((summary) => {
+      const matchesSalesPerson =
+        salesPerson === ALL || (summary.ownerEmployeeId ?? UNASSIGNED) === salesPerson
+      const matchesQuery =
+        !query ||
+        [summary.company, summary.clientId, summary.ownerName, summary.status]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(query))
+      return matchesSalesPerson && matchesQuery
+    })
+  }, [summaries, salesPerson, clientQuery])
   const totals = sum(visible.map((s) => pick(s, isOwner)))
   const gstNote = isOwner ? "Including GST" : "Without GST"
 
@@ -196,7 +204,13 @@ export function SalesDetailsClient({ summaries, isOwner }: { summaries: ClientLe
           <CardTitle>Clients</CardTitle>
           <CardDescription>Click a client to see each service, the payments made for it, and what is still to pay.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
+          <SearchField
+            className="w-full sm:max-w-sm"
+            value={clientQuery}
+            onChange={(e) => setClientQuery(e.target.value)}
+            placeholder="Search clients by company, ID, salesperson…"
+          />
           <Table>
             <TableHeader>
               <TableRow>

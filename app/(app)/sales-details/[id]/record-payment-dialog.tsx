@@ -45,6 +45,8 @@ export function RecordPaymentDialog({
     method: methods[0],
     gstType: defaultGstType,
     reference: "",
+    accountName: "",
+    accountHolder: "",
     notes: "",
   })
   const [open, setOpen] = useState(false)
@@ -174,6 +176,31 @@ export function RecordPaymentDialog({
               onChange={(e) => setForm((f) => ({ ...f, reference: e.target.value }))}
               placeholder="e.g. UTR / cheque no."
             />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="rp-account-name">Account name</Label>
+              <Input
+                id="rp-account-name"
+                className="h-10 text-base"
+                value={form.accountName}
+                onChange={(e) => setForm((f) => ({ ...f, accountName: e.target.value }))}
+                placeholder="e.g. Current account"
+                maxLength={120}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="rp-account-holder">Account holder</Label>
+              <Input
+                id="rp-account-holder"
+                className="h-10 text-base"
+                value={form.accountHolder}
+                onChange={(e) => setForm((f) => ({ ...f, accountHolder: e.target.value }))}
+                placeholder="Name on the account"
+                maxLength={120}
+              />
+            </div>
           </div>
 
           <div className="rounded-lg border bg-muted/40 p-3 text-sm">

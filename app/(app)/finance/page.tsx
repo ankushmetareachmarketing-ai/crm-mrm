@@ -1,21 +1,11 @@
-import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getCurrentEmployee } from "@/lib/auth/current-user"
 import { Wallet, ReceiptText, TrendingUp, ShieldAlert } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
 import { StatCard } from "@/components/stat-card"
-import { StatusBadge } from "@/components/status-badge"
-import { formatCurrency, formatDate } from "@/lib/format"
+import { formatCurrency } from "@/lib/format"
 import { pool } from "@/lib/db"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { FinanceTables } from "./finance-tables"
 
 export default async function FinancePage() {
   // Company-wide balances: HR only (Owner uses Sales Details).
@@ -76,67 +66,7 @@ export default async function FinancePage() {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Client due / advance aging</CardTitle>
-            <CardDescription>Due = max(balance, 0). Advance = max(-balance, 0).</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Client</TableHead>
-                  <TableHead className="text-right">Due</TableHead>
-                  <TableHead className="text-right">Advance</TableHead>
-                  <TableHead>Last receipt</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {clients.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell>
-                      <Link href={`/crm/clients/${c.id}`} className="font-medium hover:underline">
-                        {c.company}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {c.balance > 0 ? formatCurrency(c.balance) : "—"}
-                    </TableCell>
-                    <TableCell className="text-right text-emerald-700">
-                      {c.balance < 0 ? formatCurrency(-c.balance) : "—"}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatDate(c.lastReceiptDate)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Pending payment submissions</CardTitle>
-            <CardDescription>Does not change confirmed due until accepted.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            {pendingReceipts.map((p) => (
-              <Link key={p.id} href={`/crm/clients/${p.clientId}`} className="block rounded-lg border p-3 hover:border-primary">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">{p.company}</span>
-                  <StatusBadge status="Pending" />
-                </div>
-                <p className="mt-1 text-sm font-medium">{formatCurrency(p.amount)}</p>
-              </Link>
-            ))}
-            {pendingReceipts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No submissions awaiting acceptance.</p>
-            ) : null}
-          </CardContent>
-        </Card>
-      </div>
+      <FinanceTables clients={clients} pendingReceipts={pendingReceipts} />
     </div>
   )
 }

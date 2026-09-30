@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import { ArrowLeft, CalendarRange, Clock, Plus } from "@/components/icons"
 import { StatusBadge } from "@/components/status-badge"
+import { SearchField } from "@/components/search-field"
 import { formatCurrency } from "@/lib/format"
 import {
   buildServiceTree,
@@ -83,6 +84,7 @@ export function ClientStatementClient({
   paymentsNeedApproval: boolean
 }) {
   const [month, setMonth] = useState<string>(currentMonthKey())
+  const [serviceQuery, setServiceQuery] = useState("")
   const isAll = month === ALL_MONTHS
 
   const monthOptions = useMemo(() => {
@@ -100,6 +102,7 @@ export function ClientStatementClient({
   // ones that are still unpaid or received a payment this month.
   const visibleNodes = useMemo(() => {
     const inMonth = (d: string) => isAll || monthKey(d) === month
+    const query = serviceQuery.trim().toLowerCase()
     return tree.nodes
       .filter((n) => {
         if (inMonth(n.service.date)) return true
@@ -107,12 +110,13 @@ export function ClientStatementClient({
         const stillOwed = n.service.approvalStatus === "Approved" && n.leftTotal > 0.005
         return stillOwed || n.service.approvalStatus === "Pending" || n.payments.some((p) => inMonth(p.entry.date))
       })
+      .filter((n) => !query || [n.service.label, n.service.id].some((value) => value.toLowerCase().includes(query)))
       .sort((a, b) => {
         const aNow = inMonth(a.service.date) ? 1 : 0
         const bNow = inMonth(b.service.date) ? 1 : 0
         return bNow - aNow || b.service.date.localeCompare(a.service.date) || b.service.createdAt.localeCompare(a.service.createdAt)
       })
-  }, [tree, month, isAll])
+  }, [tree, month, isAll, serviceQuery])
 
   const pendingCount = entries.filter(
     (e) => e.approvalStatus === "Pending" && !(e.type === "payment" && e.chargeId)
@@ -238,6 +242,12 @@ export function ClientStatementClient({
             Each service shows the payments made for it, and how much is still to pay. Payments clear the oldest bill
             first.
           </p>
+          <SearchField
+            className="w-full sm:max-w-sm"
+            value={serviceQuery}
+            onChange={(e) => setServiceQuery(e.target.value)}
+            placeholder="Search this client's services…"
+          />
           {visibleNodes.map((node) => (
             <ServiceNodeCard
               key={node.service.id}

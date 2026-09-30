@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import { AlarmClock, CalendarCheck, Download, IndianRupee, Users2 } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
+import { SearchField } from "@/components/search-field"
 import { StatCard } from "@/components/stat-card"
 import { StatusBadge } from "@/components/status-badge"
 import { formatCurrency, formatDate } from "@/lib/format"
@@ -120,6 +121,7 @@ export function AttendanceClient({
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(currentEmployeeId)
   const [selectedMonth, setSelectedMonth] = useState(currentMonthKey())
   const [salaryMonth, setSalaryMonth] = useState(currentMonthKey())
+  const [employeeQuery, setEmployeeQuery] = useState("")
 
   const [dayDialogDate, setDayDialogDate] = useState<string | null>(null)
   const [dayForm, setDayForm] = useState(emptyDayForm)
@@ -216,6 +218,9 @@ export function AttendanceClient({
     () => employees.map((emp) => ({ emp, entry: entries.find((e) => e.employeeId === emp.id && e.workDate === todayKey()) })),
     [employees, entries]
   )
+  const visibleTodayAll = todayAll.filter(({ emp }) =>
+    [emp.name, emp.id].some((value) => value.toLowerCase().includes(employeeQuery.trim().toLowerCase()))
+  )
 
   const payrollRows = useMemo(() => {
     return employees.map((emp) => {
@@ -226,11 +231,15 @@ export function AttendanceClient({
       return { employee: emp, salary, penalty, net: salary - penalty }
     })
   }, [employees, entries, salaryMonth])
+  const visiblePayrollRows = payrollRows.filter((row) =>
+    [row.employee.name, row.employee.id]
+      .some((value) => value.toLowerCase().includes(employeeQuery.trim().toLowerCase()))
+  )
 
   function exportPayroll() {
     downloadCsv(
       `payroll-${salaryMonth}.csv`,
-      payrollRows.map((r) => ({
+      visiblePayrollRows.map((r) => ({
         Employee: r.employee.name,
         "Base salary": r.salary,
         Penalty: r.penalty,
@@ -350,7 +359,13 @@ export function AttendanceClient({
                 <CardTitle>Today — all employees</CardTitle>
                 <CardDescription>Quick check of who&apos;s checked in.</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex flex-col gap-4">
+                <SearchField
+                  className="w-full sm:max-w-sm"
+                  value={employeeQuery}
+                  onChange={(e) => setEmployeeQuery(e.target.value)}
+                  placeholder="Search employees by name or ID…"
+                />
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -361,7 +376,7 @@ export function AttendanceClient({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {todayAll.map(({ emp, entry }) => (
+                    {visibleTodayAll.map(({ emp, entry }) => (
                       <TableRow key={emp.id}>
                         <TableCell className="font-medium">{emp.name}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{formatTime(entry?.checkInAt ?? null)}</TableCell>
@@ -401,7 +416,13 @@ export function AttendanceClient({
                 <CardTitle>Payroll — {formatMonth(salaryMonth)}</CardTitle>
                 <CardDescription>Base salary minus any attendance penalties for the month.</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex flex-col gap-4">
+                <SearchField
+                  className="w-full sm:max-w-sm"
+                  value={employeeQuery}
+                  onChange={(e) => setEmployeeQuery(e.target.value)}
+                  placeholder="Search payroll by employee name or ID…"
+                />
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -412,7 +433,7 @@ export function AttendanceClient({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {payrollRows.map((r) => (
+                    {visiblePayrollRows.map((r) => (
                       <TableRow key={r.employee.id}>
                         <TableCell className="font-medium">{r.employee.name}</TableCell>
                         <TableCell className="text-right">{formatCurrency(r.salary)}</TableCell>

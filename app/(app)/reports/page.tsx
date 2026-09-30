@@ -1,3 +1,6 @@
+"use client"
+
+import { useState } from "react"
 import {
   Wallet,
   ReceiptText,
@@ -9,6 +12,7 @@ import {
   History,
 } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
+import { SearchField } from "@/components/search-field"
 import { auditLog } from "@/lib/mock-data"
 import { Button } from "@/components/ui/button"
 import {
@@ -45,6 +49,15 @@ const reportCards = [
 ]
 
 export default function ReportsPage() {
+  const [query, setQuery] = useState("")
+  const normalizedQuery = query.trim().toLowerCase()
+  const visibleReports = reportCards.filter((report) =>
+    `${report.title} ${report.description}`.toLowerCase().includes(normalizedQuery)
+  )
+  const visibleAuditEvents = auditLog.filter((event) =>
+    `${event.id} ${event.actor} ${event.action} ${event.entity} ${event.timestamp}`.toLowerCase().includes(normalizedQuery)
+  )
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -59,8 +72,14 @@ export default function ReportsPage() {
         </TabsList>
 
         <TabsContent value="library">
+          <SearchField
+            className="mb-4 w-full sm:max-w-sm"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search reports…"
+          />
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {reportCards.map((r) => (
+            {visibleReports.map((r) => (
               <Card key={r.title}>
                 <CardHeader>
                   <div className="mb-1 flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -88,6 +107,12 @@ export default function ReportsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              <SearchField
+                className="mb-4 w-full sm:max-w-sm"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search audit events…"
+              />
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -99,7 +124,7 @@ export default function ReportsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {auditLog.map((event) => (
+                  {visibleAuditEvents.map((event) => (
                     <TableRow key={event.id}>
                       <TableCell className="font-mono text-xs">{event.id}</TableCell>
                       <TableCell>{event.actor}</TableCell>
