@@ -7,6 +7,7 @@ import { ClientsClient } from "./clients-client"
 interface ClientRow {
   id: string
   company: string
+  phone: string | null
   industry: string
   owner_employee_id: string | null
   owner_name: string | null
@@ -36,7 +37,7 @@ export default async function ClientsPage() {
 
   const [clientsResult, employees] = await Promise.all([
     pool.query<ClientRow>(
-      `select c.id, c.company, c.industry, c.owner_employee_id, e.name as owner_name,
+      `select c.id, c.company, c.phone, c.industry, c.owner_employee_id, e.name as owner_name,
               c.status, c.balance::text, c.last_receipt_date::text, c.since::text, c.renewal_date::text,
               (select count(*) from public.client_contacts cc where cc.client_id = c.id)::text as contacts_count,
               (select coalesce(sum(p.amount), 0) from public.payments p
@@ -55,6 +56,7 @@ export default async function ClientsPage() {
   const clients: (Client & { totalReceived: number })[] = clientsResult.rows.map((c) => ({
     id: c.id,
     company: c.company,
+    phone: c.phone,
     industry: c.industry,
     owner: c.owner_name ?? "—",
     ownerEmployeeId: c.owner_employee_id,

@@ -45,6 +45,7 @@ const statuses: ClientStatus[] = ["Active", "On Hold", "Inactive"]
 
 const emptyForm = {
   company: "",
+  phone: "",
   industry: "",
   ownerEmployeeId: "",
   status: "Active" as ClientStatus,
@@ -95,7 +96,7 @@ export function ClientsClient({
     const query = clientQuery.trim().toLowerCase()
     if (!query) return clients
     return clients.filter((client) =>
-      [client.company, client.id, client.industry, client.owner, client.status, client.city, client.state, client.gstin]
+      [client.company, client.phone, client.id, client.industry, client.owner, client.status, client.city, client.state, client.gstin]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query))
     )
@@ -112,6 +113,7 @@ export function ClientsClient({
     setEditingId(client.id)
     setForm({
       company: client.company,
+      phone: client.phone ?? "",
       industry: client.industry,
       ownerEmployeeId: client.ownerEmployeeId ?? "",
       status: client.status,
@@ -134,6 +136,10 @@ export function ClientsClient({
 
   async function handleSubmit() {
     if (!form.company.trim()) return
+    if (!editingId && !form.phone.trim()) {
+      setError("Phone number is required for a new client.")
+      return
+    }
     setSubmitting(true)
     setError(null)
     try {
@@ -155,6 +161,7 @@ export function ClientsClient({
               ? {
                   ...c,
                   company: form.company,
+                  phone: form.phone.trim() || null,
                   industry: form.industry || "Unclassified",
                   owner: ownerName,
                   ownerEmployeeId: form.ownerEmployeeId || null,
@@ -189,6 +196,7 @@ export function ClientsClient({
         const newClient: ClientWithFinance = {
           id: body.id,
           company: form.company,
+          phone: form.phone.trim(),
           industry: form.industry || "Unclassified",
           owner: ownerName,
           ownerEmployeeId: form.ownerEmployeeId || null,
@@ -254,6 +262,19 @@ export function ClientsClient({
                     value={form.company}
                     onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
                     placeholder="e.g. Anand Retail Group"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="client-phone">Phone number{!editingId ? " *" : ""}</Label>
+                  <Input
+                    id="client-phone"
+                    type="tel"
+                    className="h-10 text-base"
+                    value={form.phone}
+                    onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                    placeholder="e.g. +91 98765 43210"
+                    maxLength={30}
+                    required={!editingId}
                   />
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -474,6 +495,7 @@ export function ClientsClient({
                           {client.company}
                         </Link>
                         <div className="text-xs text-muted-foreground">{client.id}</div>
+                        {client.phone ? <div className="text-xs text-muted-foreground">{client.phone}</div> : null}
                       </div>
                     </div>
                   </TableCell>

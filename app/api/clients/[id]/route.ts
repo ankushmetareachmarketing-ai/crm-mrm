@@ -7,6 +7,7 @@ import { isValidDateString } from "@/lib/validate"
 
 const EDITABLE_FIELDS: Record<string, string> = {
   company: "company",
+  phone: "phone",
   industry: "industry",
   ownerEmployeeId: "owner_employee_id",
   status: "status",
@@ -59,6 +60,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (body.renewalDate && !isValidDateString(body.renewalDate)) {
     return NextResponse.json({ error: "Renewal date is invalid." }, { status: 400 })
   }
+  if (typeof body.phone === "string" && body.phone.trim()) {
+    const normalizedPhone = body.phone.trim()
+    const digits = normalizedPhone.replace(/\D/g, "")
+    if (normalizedPhone.length > 30 || !/^\+?[\d\s().-]+$/.test(normalizedPhone) || digits.length < 7 || digits.length > 15) {
+      return NextResponse.json({ error: "Enter a valid client phone number (7–15 digits)." }, { status: 400 })
+    }
+    body.phone = normalizedPhone
+  }
 
   const setClauses: string[] = []
   const values: unknown[] = []
@@ -66,7 +75,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   for (const [key, column] of Object.entries(EDITABLE_FIELDS)) {
     if (key in body) {
-      values.push(body[key] || null)
+      values.push(key === "phone" ? (body[key]?.trim() || null) : body[key] || null)
       setClauses.push(`${column} = $${values.length}`)
       changes.push(key)
     }

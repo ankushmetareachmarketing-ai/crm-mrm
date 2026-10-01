@@ -40,6 +40,7 @@ export type ClientStatus = "Active" | "On Hold" | "Inactive"
 export interface Client {
   id: string
   company: string
+  phone?: string | null
   industry: string
   owner: string
   ownerEmployeeId: string | null

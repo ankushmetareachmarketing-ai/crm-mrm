@@ -32,6 +32,7 @@ export default async function ClientDetailPage({
   const { rows: clientRows } = await pool.query<{
     id: string
     company: string
+    phone: string | null
     industry: string
     owner_employee_id: string | null
     owner_name: string | null
@@ -52,7 +53,7 @@ export default async function ClientDetailPage({
     country: string
     description: string | null
   }>(
-    `select c.id, c.company, c.industry, c.owner_employee_id, e.name as owner_name, c.status,
+    `select c.id, c.company, c.phone, c.industry, c.owner_employee_id, e.name as owner_name, c.status,
             c.balance::text, c.last_receipt_date::text, c.since::text, c.renewal_date::text,
             c.website, c.logo_url, c.gstin, c.company_size, c.address_line1, c.address_line2,
             c.city, c.state, c.pincode, c.country, c.description
@@ -73,6 +74,7 @@ export default async function ClientDetailPage({
   const client: Client & { balance: number } = {
     id: clientRow.id,
     company: clientRow.company,
+    phone: clientRow.phone,
     industry: clientRow.industry,
     owner: clientRow.owner_name ?? "—",
     ownerEmployeeId: clientRow.owner_employee_id,
@@ -225,6 +227,7 @@ export default async function ClientDetailPage({
                   .join(" · ")}
               </p>
             </div>
+            {client.phone ? <p className="text-sm text-muted-foreground">Phone: {client.phone}</p> : null}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={client.status} />
