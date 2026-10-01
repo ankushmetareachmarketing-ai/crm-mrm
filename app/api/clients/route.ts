@@ -47,41 +47,56 @@ export async function POST(request: Request) {
   // create records assigned to themselves.
   const resolvedOwnerId = caller.role === "Owner" ? ownerEmployeeId || caller.id : caller.id
 
-  const { rows: countRows } = await pool.query(`select count(*)::int as count from public.clients`)
-  const id = `CL-${2010 + countRows[0].count}`
+  const db = await pool.connect()
+  let id: string
+  try {
+    await db.query("begin")
+    await db.query("lock table public.clients in share row exclusive mode")
+    const { rows } = await db.query<{ next_id: number }>(
+      `select coalesce(max(substring(id from 4)::int), 2009) + 1 as next_id
+       from public.clients where id ~ '^CL-[0-9]+$'`
+    )
+    id = `CL-${rows[0].next_id}`
 
-  await pool.query(
-    `insert into public.clients
-       (id, company, industry, owner_employee_id, status, website, logo_url, gstin, company_size,
-        address_line1, address_line2, city, state, pincode, country, description, renewal_date, phone)
-      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
-    [
-      id,
-      company,
-      industry || "Unclassified",
-      resolvedOwnerId,
-      status || "Active",
-      website || null,
-      logoUrl || null,
-      gstin || null,
-      companySize || null,
-      addressLine1 || null,
-      addressLine2 || null,
-      city || null,
-      state || null,
-      pincode || null,
-      country || "India",
-      description || null,
-      renewalDate || null,
-      normalizedPhone,
-    ]
-  )
+    await db.query(
+      `insert into public.clients
+         (id, company, industry, owner_employee_id, status, website, logo_url, gstin, company_size,
+          address_line1, address_line2, city, state, pincode, country, description, renewal_date, phone)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
+      [
+        id,
+        company,
+        industry || "Unclassified",
+        resolvedOwnerId,
+        status || "Active",
+        website || null,
+        logoUrl || null,
+        gstin || null,
+        companySize || null,
+        addressLine1 || null,
+        addressLine2 || null,
+        city || null,
+        state || null,
+        pincode || null,
+        country || "India",
+        description || null,
+        renewalDate || null,
+        normalizedPhone,
+      ]
+    )
 
-  await pool.query(
-    `insert into public.activity_log (entity_type, entity_id, actor_employee_id, action, detail)
-     values ('client', $1, $2, 'Onboarded', 'Client record created')`,
-    [id, caller.id]
-  )
+    await db.query(
+      `insert into public.activity_log (entity_type, entity_id, actor_employee_id, action, detail)
+       values ('client', $1, $2, 'Onboarded', 'Client record created')`,
+      [id, caller.id]
+    )
+    await db.query("commit")
+  } catch (error) {
+    await db.query("rollback")
+    throw error
+  } finally {
+    db.release()
+  }
 
   await notify({
     employeeIds: [resolvedOwnerId],

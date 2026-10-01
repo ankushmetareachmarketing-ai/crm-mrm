@@ -2,12 +2,14 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
+import * as XLSX from "@e965/xlsx"
 import { cn } from "@/lib/utils"
-import { ChevronRight, Pencil, Plus } from "@/components/icons"
+import { ChevronRight, Download, Pencil, Plus, Trash2, Upload } from "@/components/icons"
 import { PageHeader } from "@/components/page-header"
 import { SearchField } from "@/components/search-field"
 import { StatusBadge } from "@/components/status-badge"
 import { ImageUpload } from "@/components/image-upload"
+import { downloadCsv } from "@/lib/export-csv"
 import { formatCurrency, formatDate } from "@/lib/format"
 import type { Client, ClientStatus } from "@/lib/types"
 import { Button } from "@/components/ui/button"
@@ -33,6 +35,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Table,
   TableBody,
   TableCell,
@@ -42,6 +54,50 @@ import {
 } from "@/components/ui/table"
 
 const statuses: ClientStatus[] = ["Active", "On Hold", "Inactive"]
+const MAX_IMPORT_ROWS = 500
+
+interface BulkClientRow {
+  company: string
+  phone: string
+  industry: string
+  owner: string
+  status: string
+  website: string
+  gstin: string
+  companySize: string
+  addressLine1: string
+  addressLine2: string
+  city: string
+  state: string
+  pincode: string
+  country: string
+  description: string
+  renewalDate: string
+}
+
+interface BulkImportIssue {
+  row: number
+  messages: string[]
+}
+
+function normalizeHeader(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "")
+}
+
+function validateBulkRows(rows: BulkClientRow[]): BulkImportIssue[] {
+  return rows.flatMap((row, index) => {
+    const issues: string[] = []
+    const digits = row.phone.replace(/\D/g, "")
+    if (!row.company) issues.push("Company Name is required")
+    if (!row.phone || !/^\+?[\d\s().-]+$/.test(row.phone) || digits.length < 7 || digits.length > 15) {
+      issues.push("Number must contain 7–15 digits")
+    }
+    if (!statuses.some((status) => status.toLowerCase() === row.status.toLowerCase())) {
+      issues.push("Status must be Active, On Hold, or Inactive")
+    }
+    return issues.length ? [{ row: index + 2, messages: issues }] : []
+  })
+}
 
 const emptyForm = {
   company: "",
@@ -62,6 +118,25 @@ const emptyForm = {
   description: "",
   renewalDate: "",
 }
+
+const BULK_COLUMNS: { key: keyof BulkClientRow; header: string; aliases: string[] }[] = [
+  { key: "company", header: "Company Name", aliases: ["companyname", "company"] },
+  { key: "phone", header: "Number", aliases: ["number", "phone", "phonenumber", "mobile", "mobilenumber"] },
+  { key: "industry", header: "Industry", aliases: ["industry"] },
+  { key: "owner", header: "Owner", aliases: ["owner", "ownername", "owneremployeeid"] },
+  { key: "status", header: "Status", aliases: ["status"] },
+  { key: "website", header: "Website", aliases: ["website"] },
+  { key: "gstin", header: "GSTIN", aliases: ["gstin"] },
+  { key: "companySize", header: "Company Size", aliases: ["companysize"] },
+  { key: "addressLine1", header: "Address Line 1", aliases: ["addressline1", "address1"] },
+  { key: "addressLine2", header: "Address Line 2", aliases: ["addressline2", "address2"] },
+  { key: "city", header: "City", aliases: ["city"] },
+  { key: "state", header: "State", aliases: ["state"] },
+  { key: "pincode", header: "Pincode", aliases: ["pincode", "postalcode", "zipcode"] },
+  { key: "country", header: "Country", aliases: ["country"] },
+  { key: "description", header: "Description", aliases: ["description", "notes"] },
+  { key: "renewalDate", header: "Renewal Date", aliases: ["renewaldate", "expirydate"] },
+]
 
 type ClientWithFinance = Client & { totalReceived: number }
 
@@ -91,6 +166,15 @@ export function ClientsClient({
   const [form, setForm] = useState(emptyForm)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [bulkFileName, setBulkFileName] = useState("")
+  const [bulkRows, setBulkRows] = useState<BulkClientRow[]>([])
+  const [bulkIssues, setBulkIssues] = useState<BulkImportIssue[]>([])
+  const [bulkError, setBulkError] = useState<string | null>(null)
+  const [bulkSubmitting, setBulkSubmitting] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<ClientWithFinance | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false)
 
   const visibleClients = useMemo(() => {
     const query = clientQuery.trim().toLowerCase()
@@ -101,6 +185,144 @@ export function ClientsClient({
         .some((value) => String(value).toLowerCase().includes(query))
     )
   }, [clients, clientQuery])
+
+  async function handleBulkFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setBulkFileName(file.name)
+    setBulkRows([])
+    setBulkIssues([])
+    setBulkError(null)
+    try {
+      const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", raw: false })
+      const firstSheetName = workbook.SheetNames[0]
+      if (!firstSheetName) {
+        setBulkError("The selected file does not contain a worksheet.")
+        return
+      }
+      const sheetRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[firstSheetName], {
+        defval: "",
+        raw: false,
+      })
+      if (sheetRows.length === 0) {
+        setBulkError("The selected file has no client rows.")
+        return
+      }
+      const headers = Object.keys(sheetRows[0]).map((header) => [header, normalizeHeader(header)] as const)
+      const matchedHeaders = new Map<keyof BulkClientRow, string>()
+      for (const column of BULK_COLUMNS) {
+        const header = headers.find(([, key]) => column.aliases.includes(key))?.[0]
+        if (header) matchedHeaders.set(column.key, header)
+      }
+      const missingHeaders = [
+        !matchedHeaders.has("company") ? "Company Name" : null,
+        !matchedHeaders.has("phone") ? "Number" : null,
+        !matchedHeaders.has("status") ? "Status" : null,
+      ].filter(Boolean)
+      if (missingHeaders.length > 0) {
+        setBulkError(`Missing required column${missingHeaders.length > 1 ? "s" : ""}: ${missingHeaders.join(", ")}.`)
+        return
+      }
+      if (sheetRows.length > MAX_IMPORT_ROWS) {
+        setBulkError(`Import is limited to ${MAX_IMPORT_ROWS} clients per file.`)
+        return
+      }
+      const parsedRows = sheetRows.map((row) => {
+        const parsed = {} as BulkClientRow
+        for (const column of BULK_COLUMNS) {
+          parsed[column.key] = String(row[matchedHeaders.get(column.key) ?? ""] ?? "").trim()
+        }
+        return parsed
+      })
+      setBulkRows(parsedRows)
+      setBulkIssues(validateBulkRows(parsedRows))
+    } catch {
+      setBulkError("Could not read this file. Use a valid CSV or Excel workbook.")
+    } finally {
+      event.target.value = ""
+    }
+  }
+
+  function downloadSample() {
+    downloadCsv("clients-bulk-upload-sample.csv", [
+      {
+        "Company Name": "Example Company",
+        Number: "9876543210",
+        Industry: "Retail",
+        Owner: "",
+        Status: "Active",
+        Website: "https://example.com",
+        GSTIN: "",
+        "Company Size": "",
+        "Address Line 1": "",
+        "Address Line 2": "",
+        City: "",
+        State: "",
+        Pincode: "",
+        Country: "India",
+        Description: "",
+        "Renewal Date": "",
+      },
+    ])
+  }
+
+  async function handleBulkImport() {
+    if (bulkRows.length === 0 || bulkIssues.length > 0) return
+    setBulkSubmitting(true)
+    setBulkError(null)
+    try {
+      const res = await fetch("/api/clients/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clients: bulkRows }),
+      })
+      const body = await res.json()
+      if (!res.ok) {
+        setBulkError(body.error ?? "Could not import clients.")
+        setBulkIssues(Array.isArray(body.errors) ? body.errors : [])
+        return
+      }
+      const importedClients: ClientWithFinance[] = body.clients.map((client: BulkClientRow & {
+        id: string
+        ownerEmployeeId: string
+        ownerName: string
+      }) => ({
+        id: client.id,
+        company: client.company,
+        phone: client.phone,
+        industry: client.industry,
+        owner: client.ownerName,
+        ownerEmployeeId: client.ownerEmployeeId,
+        status: client.status as ClientStatus,
+        contacts: 0,
+        balance: 0,
+        lastReceiptDate: null,
+        since: new Date().toISOString().slice(0, 10),
+        renewalDate: client.renewalDate,
+        totalReceived: 0,
+        website: client.website,
+        logoUrl: null,
+        gstin: client.gstin,
+        companySize: client.companySize,
+        addressLine1: client.addressLine1,
+        addressLine2: client.addressLine2,
+        city: client.city,
+        state: client.state,
+        pincode: client.pincode,
+        country: client.country,
+        description: client.description,
+      }))
+      setClients((previous) => [...importedClients, ...previous])
+      setBulkOpen(false)
+      setBulkFileName("")
+      setBulkRows([])
+      setBulkIssues([])
+    } catch {
+      setBulkError("Could not reach the server. Please try again.")
+    } finally {
+      setBulkSubmitting(false)
+    }
+  }
 
   function openCreate() {
     setEditingId(null)
@@ -227,12 +449,113 @@ export function ClientsClient({
     }
   }
 
+  async function handleDeleteClient() {
+    if (!deleteTarget) return
+    setDeleteSubmitting(true)
+    setDeleteError(null)
+    try {
+      const res = await fetch(`/api/clients/${deleteTarget.id}`, { method: "DELETE" })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setDeleteError(body.error ?? "Could not delete this client.")
+        return
+      }
+      setClients((previous) => previous.filter((client) => client.id !== deleteTarget.id))
+      setDeleteTarget(null)
+    } catch {
+      setDeleteError("Could not reach the server. Please try again.")
+    } finally {
+      setDeleteSubmitting(false)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Clients"
         description="Connected client records. Ownership and reassignment are owner-controlled."
         actions={
+          <div className="flex flex-wrap items-center gap-2">
+          <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+            <DialogTrigger render={<Button size="sm" variant="outline" /> }>
+              <Upload /> Bulk upload
+            </DialogTrigger>
+            <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-lg">Bulk upload clients</DialogTitle>
+                <DialogDescription>
+                  Required: Company Name, Number, Status. Other columns are optional. Company Logo is not included.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col gap-4 py-1">
+                <Button type="button" variant="outline" className="w-fit" onClick={downloadSample}>
+                  <Download /> Download sample CSV
+                </Button>
+                <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                  Include Industry, Owner, Website, GSTIN, Company Size, address fields, Description, or Renewal Date when available. Status: Active, On Hold, or Inactive. Phone numbers need 7–15 digits; use YYYY-MM-DD for Renewal Date.
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="client-bulk-file">CSV or Excel file</Label>
+                  <Input
+                    id="client-bulk-file"
+                    type="file"
+                    accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    onChange={handleBulkFileChange}
+                  />
+                  {bulkFileName ? <p className="text-xs text-muted-foreground">{bulkFileName}</p> : null}
+                </div>
+                {bulkRows.length > 0 ? (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-sm font-medium">
+                      {bulkRows.length} client rows{bulkIssues.length > 0 ? ` · ${bulkIssues.length} rows need attention` : " · ready to import"}
+                    </p>
+                    <div className="max-h-56 overflow-auto rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Company Name</TableHead>
+                            <TableHead>Number</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {bulkRows.slice(0, 8).map((row, index) => (
+                            <TableRow key={`${row.company}-${index}`}>
+                              <TableCell>{row.company || "—"}</TableCell>
+                              <TableCell>{row.phone || "—"}</TableCell>
+                              <TableCell>{row.status || "—"}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    {bulkRows.length > 8 ? (
+                      <p className="text-xs text-muted-foreground">Showing the first 8 rows.</p>
+                    ) : null}
+                  </div>
+                ) : null}
+                {bulkIssues.length > 0 ? (
+                  <div className="max-h-36 overflow-y-auto rounded-md border border-destructive/30 p-3 text-sm text-destructive">
+                    <ul className="flex flex-col gap-1">
+                      {bulkIssues.slice(0, 20).map((issue) => (
+                        <li key={issue.row}>Row {issue.row}: {issue.messages.join("; ")}</li>
+                      ))}
+                    </ul>
+                    {bulkIssues.length > 20 ? <p className="mt-2">And {bulkIssues.length - 20} more rows.</p> : null}
+                  </div>
+                ) : null}
+                {bulkError ? <p className="text-sm text-destructive">{bulkError}</p> : null}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setBulkOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleBulkImport} disabled={bulkSubmitting || bulkRows.length === 0 || bulkIssues.length > 0}>
+                  {bulkSubmitting ? "Importing…" : `Import ${bulkRows.length || "clients"}`}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger render={<Button size="sm" onClick={openCreate} />}>
               <Plus /> New client
@@ -453,6 +776,7 @@ export function ClientsClient({
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         }
       />
 
@@ -536,9 +860,22 @@ export function ClientsClient({
                   <TableCell>
                     <div className="flex items-center gap-1">
                       {isOwner || client.ownerEmployeeId === currentEmployeeId ? (
-                        <Button variant="ghost" size="icon-sm" onClick={() => openEdit(client)}>
-                          <Pencil />
-                        </Button>
+                        <>
+                          <Button variant="ghost" size="icon-sm" aria-label={`Edit ${client.company}`} onClick={() => openEdit(client)}>
+                            <Pencil />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Delete ${client.company}`}
+                            onClick={() => {
+                              setDeleteError(null)
+                              setDeleteTarget(client)
+                            }}
+                          >
+                            <Trash2 className="text-destructive" />
+                          </Button>
+                        </>
                       ) : null}
                       <Link href={`/crm/clients/${client.id}`}>
                         <ChevronRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
@@ -558,6 +895,36 @@ export function ClientsClient({
           </Table>
         </CardContent>
       </Card>
+
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen && !deleteSubmitting) {
+            setDeleteTarget(null)
+            setDeleteError(null)
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {deleteTarget?.company}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes the client and related contacts/reminders. Clients with payments, services, a balance, or a converted lead cannot be deleted; mark those clients Inactive instead.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteError ? <p className="text-sm text-destructive">{deleteError}</p> : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteSubmitting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteSubmitting}
+              onClick={handleDeleteClient}
+            >
+              {deleteSubmitting ? "Deleting…" : "Delete client"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
