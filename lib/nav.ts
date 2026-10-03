@@ -20,6 +20,7 @@ import {
   ShieldAlert,
   AlarmClock,
   Laptop,
+  Megaphone,
 } from "@/components/icons"
 import type { Role } from "@/lib/types"
 
@@ -28,6 +29,8 @@ export interface NavItem {
   url: string
   icon: IconComponent
   roles: Role[] | "all"
+  /** Roles that never see this item even when roles is "all". */
+  hiddenFor?: Role[]
 }
 
 export interface NavGroup {
@@ -45,15 +48,17 @@ export const navGroups: NavGroup[] = [
     label: "Overview",
     items: [
       { title: "Dashboard", url: "/", icon: LayoutDashboard, roles: "all" },
+      { title: "Finance", url: "/owner-finance", icon: Wallet, roles: ["Owner"] },
+      { title: "Campaigns", url: "/campaign-queue", icon: Megaphone, roles: ["Owner", "Campaign Manager"] },
     ],
   },
   {
     label: "My space",
     items: [
       { title: "My profile", url: "/me", icon: UserCheck, roles: "all" },
-      { title: "My attendance", url: "/me/attendance", icon: Clock, roles: "all" },
-      { title: "My leave", url: "/me/leave", icon: CalendarRange, roles: "all" },
-      { title: "My tasks", url: "/me/tasks", icon: ListChecks, roles: "all" },
+      { title: "My attendance", url: "/me/attendance", icon: Clock, roles: "all", hiddenFor: ["Owner"] },
+      { title: "My leave", url: "/me/leave", icon: CalendarRange, roles: "all", hiddenFor: ["Owner"] },
+      { title: "My tasks", url: "/me/tasks", icon: ListChecks, roles: "all", hiddenFor: ["Owner"] },
     ],
   },
   {

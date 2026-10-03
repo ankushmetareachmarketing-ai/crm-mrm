@@ -1,6 +1,7 @@
 import "server-only"
 import type { PoolClient } from "pg"
 import { isTestingService, testedServiceOf } from "@/lib/billing"
+import { isCampaignService } from "@/lib/campaigns"
 import { formatCurrency } from "@/lib/format"
 import { notify } from "@/lib/notifications"
 
@@ -110,6 +111,22 @@ export async function decideCharge(db: PoolClient, chargeId: string, approverId:
     charge.total_amount,
     charge.client_id,
   ])
+
+  // SMS / Voice campaigns now go to the Campaign Manager to approve and run.
+  if (isCampaignService(charge.service)) {
+    await db.query(`update public.client_charges set campaign_status = 'Pending' where id = $1`, [chargeId])
+    await notify(
+      {
+        roles: ["Campaign Manager"],
+        actorId: approverId,
+        kind: "service",
+        title: `New ${testedServiceOf(charge.service)} to run`,
+        detail: `${charge.company}: ${Number(charge.quantity).toLocaleString("en-IN")} — approved by the Owner, waiting for you.`,
+        link: "/",
+      },
+      db
+    )
+  }
   let paidNow = 0
   for (const p of linked) {
     await postPayment(db, p.id, approverId)

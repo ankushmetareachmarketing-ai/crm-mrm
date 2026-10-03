@@ -24,12 +24,15 @@ export function MyProfileClient({
   tasks,
   policies,
   assets,
+  isOwner,
 }: {
   profile: EmployeeProfile
   documents: EmployeeDocument[]
   tasks: OnboardingTask[]
   policies: PolicyRow[]
   assets: EmployeeAsset[]
+  /** The Owner only manages their own details here — no documents, policies or assets. */
+  isOwner: boolean
 }) {
   const router = useRouter()
   const start = {
@@ -45,7 +48,7 @@ export function MyProfileClient({
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
   const changed = (Object.keys(form) as (keyof typeof form)[]).filter((k) => form[k] !== start[k])
-  const pendingPolicies = policies.filter((x) => !x.acknowledgedAt).length
+  const pendingPolicies = isOwner ? 0 : policies.filter((x) => !x.acknowledgedAt).length
 
   async function save() {
     setSaving(true)
@@ -89,7 +92,7 @@ export function MyProfileClient({
       ) : null}
 
       <Tabs defaultValue={pendingPolicies > 0 ? "policies" : "profile"}>
-        <TabsList className="h-11 flex-wrap p-1">
+        <TabsList className={isOwner ? "hidden" : "h-11 flex-wrap p-1"}>
           <TabsTrigger value="profile" className="cursor-pointer px-4">My details</TabsTrigger>
           <TabsTrigger value="documents" className="cursor-pointer px-4">Documents</TabsTrigger>
           <TabsTrigger value="policies" className="cursor-pointer px-4">

@@ -22,6 +22,7 @@ export async function POST(request: Request) {
   )
   await notify({
     everyone: true,
+    excludeRoles: ["Owner"],
     actorId: caller.id,
     kind: "employee",
     title: "New company policy",

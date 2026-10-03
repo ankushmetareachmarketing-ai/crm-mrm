@@ -3,6 +3,7 @@
 import { CalendarClock, History, IndianRupee, Layers } from "@/components/icons"
 import { ApprovalActions } from "@/components/approval-actions"
 import { AdvanceBadge, ApprovalBadge, PaidStateBadge, TermsBadge, TestingBadge } from "@/components/money-badges"
+import { CampaignStatusBadge } from "@/components/campaign-parts"
 import { formatCurrency, formatDate } from "@/lib/format"
 import { isTestingService, unitFor, type ServiceNode, type TreePayment } from "@/lib/billing"
 import { cn } from "@/lib/utils"
@@ -162,6 +163,7 @@ export function ServiceNodeCard({
           <div className="flex flex-wrap gap-1.5 sm:justify-end">
             <ApprovalBadge status={s.approvalStatus} kind="service" />
             {testing ? <TestingBadge free={freeTest} /> : null}
+            {s.campaignStatus ? <CampaignStatusBadge status={s.campaignStatus} /> : null}
             {!pending && !rejected && !freeTest ? <PaidStateBadge state={node.paidState} /> : null}
             {s.paymentTerms && !freeTest ? <TermsBadge terms={s.paymentTerms} /> : null}
           </div>

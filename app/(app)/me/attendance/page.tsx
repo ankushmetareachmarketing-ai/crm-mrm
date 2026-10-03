@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation"
 import { PageHeader } from "@/components/page-header"
 import { AttendanceView } from "@/components/hr/attendance-view"
 import { CheckInCard } from "@/components/hr/check-in-card"
@@ -9,6 +10,8 @@ import { officeDateKey } from "@/lib/hr/time"
 
 export default async function MyAttendancePage() {
   const me = await getCurrentEmployee()
+  // The Owner manages everyone from the HR pages; self-service is for staff.
+  if (me.role === "Owner") redirect("/me")
   const today = officeDateKey()
   const since = new Date(`${today.slice(0, 7)}-01T00:00:00Z`)
   since.setUTCMonth(since.getUTCMonth() - 5)

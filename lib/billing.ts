@@ -169,6 +169,8 @@ export interface LedgerEntry {
   approvedAt: string | null
   /** Payments only: the service this was paid against at booking. */
   chargeId: string | null
+  /** Charges only: SMS / Voice campaign progress with the Campaign Manager. */
+  campaignStatus?: "Pending" | "Approved" | "Running" | "Completed" | "Rejected" | null
   /** Charges only: terms agreed at booking, and when any credited balance is due. */
   paymentTerms: PaymentTerms | null
   dueDate: string | null

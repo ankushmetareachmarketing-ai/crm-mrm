@@ -1,5 +1,6 @@
 import { getCurrentEmployee } from "@/lib/auth/current-user"
 import type { ApprovalStatus, GstType, PaymentTerms } from "@/lib/billing"
+import type { CampaignStatus } from "@/lib/campaigns"
 import { pool } from "@/lib/db"
 import { ServicesClient, type BookedService } from "./services-client"
 
@@ -27,12 +28,13 @@ export default async function ServicesPage() {
     recorded_by_name: string | null
     approval_status: ApprovalStatus
     approved_by_name: string | null
+    campaign_status: CampaignStatus | null
   }>(
     `select ch.id, ch.client_id, c.company, o.name as owner_name, ch.service, ch.quantity::text, ch.rate::text,
             ch.base_amount::text, ch.gst_type, ch.gst_amount::text, ch.total_amount::text, ch.charge_date::text,
             ch.payment_terms, ch.due_date::text,
             coalesce(pn.total, 0)::text as paid_now, coalesce(pn.base, 0)::text as paid_now_base,
-            e.name as recorded_by_name, ch.approval_status, a.name as approved_by_name
+            e.name as recorded_by_name, ch.approval_status, a.name as approved_by_name, ch.campaign_status
      from public.client_charges ch
      join public.clients c on c.id = ch.client_id
      left join public.employees o on o.id = c.owner_employee_id
@@ -68,6 +70,7 @@ export default async function ServicesPage() {
     recordedBy: r.recorded_by_name,
     approvalStatus: r.approval_status,
     approvedBy: r.approved_by_name,
+    campaignStatus: r.campaign_status,
   }))
 
   return <ServicesClient services={services} isOwner={isOwner} />

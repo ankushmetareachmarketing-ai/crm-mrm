@@ -98,12 +98,14 @@ export async function getClientLedgerEntries(clientId: string): Promise<LedgerEn
       approval_status: ApprovalStatus
       approved_by_name: string | null
       approved_at: string | null
+      campaign_status: LedgerEntry["campaignStatus"]
     }>(
       // to_json(...)#>>'{}' gives an ISO-8601 timestamp every browser can parse.
       `select ch.id, ch.kind, ch.service, ch.quantity::text, ch.rate::text, ch.base_amount::text, ch.gst_type,
               ch.gst_amount::text, ch.total_amount::text, ch.charge_date::text, ch.payment_terms,
               ch.due_date::text, ch.notes, e.name as recorded_by_name, to_json(ch.created_at)#>>'{}' as created_at,
-              ch.approval_status, a.name as approved_by_name, to_json(ch.approved_at)#>>'{}' as approved_at
+              ch.approval_status, a.name as approved_by_name, to_json(ch.approved_at)#>>'{}' as approved_at,
+              ch.campaign_status
        from public.client_charges ch
        left join public.employees e on e.id = ch.recorded_by_employee_id
        left join public.employees a on a.id = ch.approved_by_employee_id
@@ -159,6 +161,7 @@ export async function getClientLedgerEntries(clientId: string): Promise<LedgerEn
       approvedBy: c.approved_by_name,
       approvedAt: c.approved_at,
       chargeId: null,
+      campaignStatus: c.campaign_status,
       paymentTerms: isOpeningBalance ? null : c.payment_terms,
       dueDate: c.due_date,
       notes: c.notes,

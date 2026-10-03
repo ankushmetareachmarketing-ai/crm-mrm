@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation"
 import { pool } from "@/lib/db"
 import { getCurrentEmployee } from "@/lib/auth/current-user"
 import { getMyTasks } from "@/lib/data/me"
@@ -6,6 +7,8 @@ import { MyTasksClient } from "./my-tasks-client"
 
 export default async function MyTasksPage() {
   const me = await getCurrentEmployee()
+  // The Owner manages everyone from the HR pages; self-service is for staff.
+  if (me.role === "Owner") redirect("/me")
   const [tasks, team] = await Promise.all([
     getMyTasks(me.id),
     // HR / Owner can give tasks to anyone; a manager to their own reports.

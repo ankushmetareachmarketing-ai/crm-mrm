@@ -20,6 +20,8 @@ import {
   type PaymentTerms,
 } from "@/lib/billing"
 import { cn } from "@/lib/utils"
+import type { CampaignStatus } from "@/lib/campaigns"
+import { CampaignStatusBadge } from "@/components/campaign-parts"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -61,6 +63,7 @@ export interface BookedService {
   recordedBy: string | null
   approvalStatus: ApprovalStatus
   approvedBy: string | null
+  campaignStatus: CampaignStatus | null
 }
 
 export function ServicesClient({ services, isOwner }: { services: BookedService[]; isOwner: boolean }) {
@@ -230,6 +233,7 @@ export function ServicesClient({ services, isOwner }: { services: BookedService[
                   </TableCell>
                   <TableCell>
                     <ApprovalBadge status={s.approvalStatus} kind="service" />
+                    {s.campaignStatus ? <CampaignStatusBadge status={s.campaignStatus} className="mt-1" /> : null}
                     {s.approvalStatus !== "Pending" && s.approvedBy ? (
                       <p className="mt-0.5 text-xs text-muted-foreground">by {s.approvedBy}</p>
                     ) : null}

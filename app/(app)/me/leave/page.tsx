@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation"
 import { PageHeader } from "@/components/page-header"
 import { ApplyLeaveDialog, LeaveBalances, LeaveRequestsCard } from "@/components/hr/leave-parts"
 import { getCurrentEmployee } from "@/lib/auth/current-user"
@@ -7,6 +8,8 @@ import { officeDateKey } from "@/lib/hr/time"
 
 export default async function MyLeavePage() {
   const me = await getCurrentEmployee()
+  // The Owner manages everyone from the HR pages; self-service is for staff.
+  if (me.role === "Owner") redirect("/me")
   const year = Number(officeDateKey().slice(0, 4))
   const [types, balances, requests] = await Promise.all([getLeaveTypes(), getLeaveBalances(me.id, year), getLeaveRequests(me.id)])
 

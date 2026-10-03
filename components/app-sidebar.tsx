@@ -54,7 +54,9 @@ export function AppSidebar() {
 
       <SidebarContent className="gap-1 py-3">
         {navGroups.map((group) => {
-          const items = group.items.filter((item) => item.roles === "all" || item.roles.includes(role))
+          const items = group.items.filter(
+            (item) => !item.hiddenFor?.includes(role) && (item.roles === "all" || item.roles.includes(role))
+          )
           if (items.length === 0) return null
           return (
             <SidebarGroup key={group.label} className="px-3 py-1.5">
